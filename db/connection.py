@@ -37,6 +37,11 @@ def get_async_db():
     return _async_db
 
 
+# Alias for backwards compatibility or common naming
+get_db = get_async_db
+
+
+
 async def ping_db() -> bool:
     """Returns True if MongoDB is reachable, False otherwise."""
     db = get_async_db()

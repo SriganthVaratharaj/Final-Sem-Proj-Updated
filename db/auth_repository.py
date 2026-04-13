@@ -17,7 +17,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 async def _users_collection() -> AsyncIOMotorCollection:
-    db = await get_db()
+    db = get_db()
     return db["users"]
 
 async def create_user(email: str, password: str) -> Dict[str, Any]:
