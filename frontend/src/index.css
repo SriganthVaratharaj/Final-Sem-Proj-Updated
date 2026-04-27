@@ -4,49 +4,36 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-
   body {
-    @apply bg-gray-950 text-gray-100 font-sans antialiased;
-    background-image:
-      radial-gradient(at 20% 10%,  rgba(99,102,241,0.15) 0px, transparent 50%),
-      radial-gradient(at 80% 80%,  rgba(139,92,246,0.12) 0px, transparent 50%),
-      radial-gradient(at 50% 50%,  rgba(16,16,32,1)       0px, transparent 80%);
+    @apply m-0 bg-white text-gray-900 font-sans antialiased;
   }
-
-  ::-webkit-scrollbar        { width: 6px; }
-  ::-webkit-scrollbar-track  { @apply bg-gray-900; }
-  ::-webkit-scrollbar-thumb  { @apply bg-brand-700 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-brand-500; }
 }
 
 @layer components {
   .glass {
-    @apply bg-gray-900/60 border border-gray-700/50 backdrop-blur-md rounded-2xl;
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm;
   }
   .glass-light {
-    @apply bg-gray-800/40 border border-gray-700/30 backdrop-blur-sm rounded-xl;
+    @apply bg-gray-50 border border-gray-200 rounded-lg;
   }
   .btn-primary {
-    @apply bg-brand-600 hover:bg-brand-500 text-white font-semibold px-6 py-2.5 rounded-xl
-           transition-all duration-200 shadow-lg shadow-brand-900/40
-           hover:shadow-brand-800/60 hover:-translate-y-0.5 active:translate-y-0
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+    @apply bg-gray-900 text-white font-medium px-4 py-2 rounded-md
+           transition-colors duration-150 hover:bg-gray-800
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-ghost {
-    @apply border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white
-           font-medium px-4 py-2 rounded-lg transition-all duration-200;
+    @apply border border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-md hover:bg-gray-100 transition-colors;
   }
   .badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200;
   }
   .field-label {
-    @apply text-xs font-semibold uppercase tracking-widest text-gray-500;
+    @apply text-xs font-medium text-gray-600;
   }
   .field-value {
-    @apply text-sm text-gray-200 font-medium;
+    @apply text-sm text-gray-900 font-medium;
   }
   .tag {
-    @apply px-2 py-0.5 rounded-md text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200;
   }
 }

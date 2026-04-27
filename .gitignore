@@ -9,6 +9,12 @@
 # Database and Data
 sample_data/
 db/outputs/
+db/tmp/
+uploads/tmp/
+
+# Local scratch/debug scripts
+scratch/
+hf_models/
 
 # Frontend / Node
 frontend/node_modules/

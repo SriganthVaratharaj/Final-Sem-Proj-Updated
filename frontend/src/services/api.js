@@ -1,4 +1,3 @@
-// frontend/src/services/api.js
 import axios from 'axios'
 
 const BASE = '/api'
@@ -11,7 +10,7 @@ export const uploadFiles = async (files, token = null) => {
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   const { data } = await axios.post(`${BASE}/upload`, form, { headers })
-  return data // { job_id, file_count }
+  return data
 }
 
 export const processFiles = async (files) => {
@@ -20,7 +19,7 @@ export const processFiles = async (files) => {
   const { data } = await axios.post(`${BASE}/process`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  return data // { results, total }
+  return data
 }
 
 export const fetchHistory = async (limit = 20) => {

@@ -1,4 +1,3 @@
-// frontend/src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react'
 import { jwtDecode } from 'jwt-decode'
 
@@ -13,7 +12,6 @@ export function AuthProvider({ children }) {
     if (token) {
       try {
         const decoded = jwtDecode(token)
-        // Check if expired
         if (decoded.exp * 1000 < Date.now()) {
           logout()
         } else {

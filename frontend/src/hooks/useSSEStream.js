@@ -1,11 +1,10 @@
-// frontend/src/hooks/useSSEStream.js
 import { useCallback, useRef, useState } from 'react'
 import { getStreamUrl, uploadFiles } from '../services/api'
 
 export function useSSEStream() {
   const [uploading, setUploading] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const [stages, setStages] = useState({})       // { imageIdx: currentStage }
+  const [stages, setStages] = useState({})
   const [results, setResults] = useState([])
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)

@@ -1,5 +1,6 @@
-# ── Optional: Local BLIP-base fallback (last-resort VLM) ───────────────────────
-# Install only if you want the local model fallback when HF API is unavailable.
+# ── Optional: Local transformers fallback (LayoutLM + VLM) ─────────────────────
+# Install only if you want local model fallback when HF API is unavailable.
 # Adds ~2-3 GB to the environment.
 torch>=2.0.0
 transformers>=4.40.0
+llama-cpp-python>=0.2.70
