@@ -24,10 +24,17 @@ ALL_DIGITS = {
 }
 
 SCRIPT_KEEP_RANGES = {
-    'te': [(0x0C00, 0x0C7F)], 'ta': [(0x0B80, 0x0BFF)],
-    'hi': [(0x0900, 0x097F)], 'devanagari': [(0x0900, 0x097F)],
-    'bn': [(0x0980, 0x09FF)], 'gu': [(0x0A80, 0x0AFF)],
-    'kn': [(0x0C80, 0x0CFF)], 'ml': [(0x0D00, 0x0D7F)],
+    'latin': [(0x0041, 0x005A), (0x0061, 0x007A)],
+    'devanagari': [(0x0900, 0x097F)],
+    'bengali': [(0x0980, 0x09FF)],
+    'gurmukhi': [(0x0A00, 0x0A7F)],
+    'gujarati': [(0x0A80, 0x0AFF)],
+    'oriya': [(0x0B00, 0x0B7F)],
+    'ta': [(0x0B80, 0x0BFF)],
+    'te': [(0x0C00, 0x0C7F)],
+    'kn': [(0x0C80, 0x0CFF)],
+    'ml': [(0x0D00, 0x0D7F)],
+    'arabic': [(0x0600, 0x06FF)],
 }
 
 TAMIL_TOTAL_KEYWORDS   = ['மொத்தம்', 'கொடுத்தது', 'தொகை', 'கட்டு', 'total', 'subtotal', 'amount', 'grand total', 'ரூ']
@@ -39,12 +46,32 @@ TELUGU_PHONE_KEYWORDS  = ['ఫోన్', 'మొబైల్', 'సంప్ర
 TELUGU_DATE_KEYWORDS   = ['తేది', 'తారీఖు', 'తేదీగల', 'వారము', 'నెలలో', 'సం', 'రోజు', 'మాసం']
 
 LANGUAGE_LABELS = {
-    'ta': 'Tamil', 'te': 'Telugu', 'hi': 'Hindi/Marathi (Devanagari)',
-    'bn': 'Bengali', 'gu': 'Gujarati', 'kn': 'Kannada', 'ml': 'Malayalam',
+    'latin': 'Latin/English',
+    'devanagari': 'Hindi/Marathi/Nepali (Devanagari)',
+    'bengali': 'Bengali/Assamese',
+    'gurmukhi': 'Punjabi (Gurmukhi)',
+    'gujarati': 'Gujarati',
+    'oriya': 'Odia',
+    'ta': 'Tamil',
+    'te': 'Telugu',
+    'kn': 'Kannada',
+    'ml': 'Malayalam',
+    'arabic': 'Urdu/Arabic-script',
 }
 
-SUPPORTED_OCR_LANGS = {'ta', 'te', 'hi', 'kn'}
-TARGET_LANGS = {'ta', 'te', 'hi', 'bn', 'gu', 'kn', 'ml'}
+SUPPORTED_OCR_LANGS = {'latin', 'devanagari', 'ta', 'te', 'kn', 'arabic'}
+TARGET_LANGS = set(LANGUAGE_LABELS.keys())
+
+OCR_TO_SCRIPT = {
+    'hi': 'devanagari',
+    'devanagari': 'devanagari',
+    'kn': 'kn',
+    'ka': 'kn',
+    'ta': 'ta',
+    'te': 'te',
+    'latin': 'latin',
+    'arabic': 'arabic',
+}
 
 
 def _normalize_number(text):
@@ -139,7 +166,8 @@ def _extract_invoice_fields(texts, boxes):
         if reasonable:
             fields['grand_total'] = max(reasonable)
 
-    return fields
+    # Remove fields that were not found so UI only shows what exists
+    return {k: v for k, v in fields.items() if v is not None}
 
 
 def _detect_language_for_text(text):
@@ -149,12 +177,19 @@ def _detect_language_for_text(text):
         count = sum(1 for ch in text for s, e in ranges if s <= ord(ch) <= e)
         counts[lang] = count
     best_lang = max(counts, key=counts.get, default=None)
-    return best_lang if best_lang and counts[best_lang] >= 1 else None
+    if best_lang and counts[best_lang] >= 1:
+        return best_lang
+
+    if re.search(r'[A-Za-z]', text):
+        return 'latin'
+    return None
 
 
-def _group_by_language(texts, boxes, confidences):
+def _group_by_language(texts, boxes, confidences, ocr_metadata=None):
     grouped = {label: [] for label in LANGUAGE_LABELS.values()}
     layout, line_layout = [], []
+    metadata = ocr_metadata or {}
+    dominant_script = OCR_TO_SCRIPT.get(str(metadata.get('selected_language', '')).lower())
 
     items = []
     for text, box, confidence in zip(texts, boxes, confidences):
@@ -190,7 +225,7 @@ def _group_by_language(texts, boxes, confidences):
     for cluster in clusters:
         cluster.sort(key=lambda i: i['xmin'])
         line_text = ' '.join(i['text'] for i in cluster).strip()
-        lang = _detect_language_for_text(line_text)
+        lang = _detect_language_for_text(line_text) or dominant_script
         label = LANGUAGE_LABELS.get(lang)
         avg_conf = sum(i['confidence'] for i in cluster) / len(cluster)
         entry = {'line_id': line_id, 'text': line_text, 'boxes': [i['box'] for i in cluster], 'confidence': round(avg_conf, 4)}
@@ -222,7 +257,7 @@ def postprocess(texts, boxes, confidences, ocr_metadata=None):
     cleaned_confidences = [c for _, _, c in entries]
 
     invoice_fields = _extract_invoice_fields(cleaned_texts, cleaned_boxes)
-    grouped, summary, layout, line_layout = _group_by_language(cleaned_texts, cleaned_boxes, cleaned_confidences)
+    grouped, summary, layout, line_layout = _group_by_language(cleaned_texts, cleaned_boxes, cleaned_confidences, ocr_metadata)
 
     return {
         "text": cleaned_texts,
@@ -232,9 +267,14 @@ def postprocess(texts, boxes, confidences, ocr_metadata=None):
         "language_summary": {
             "detected": summary,
             "unsupported_models": sorted(TARGET_LANGS - SUPPORTED_OCR_LANGS),
+            "selected_language": (ocr_metadata or {}).get("selected_language"),
+            "ocr_mode": (ocr_metadata or {}).get("mode"),
+            "language_ranking": (ocr_metadata or {}).get("language_ranking", []),
+            "indian_language_support": (ocr_metadata or {}).get("indian_language_support", {}),
+            "indian_language_groups": (ocr_metadata or {}).get("indian_language_groups", {}),
             "notes": [
-                "Hindi and Marathi share Devanagari script; grouped together.",
-                "Bengali, Gujarati, and Malayalam detection uses script ranges; OCR model support limited.",
+                "Document-level dominant language is preferred to avoid cross-language OCR drift.",
+                "Indian language grouping is script-aware (Devanagari, Tamil, Telugu, Kannada, Bengali, Gurmukhi, Gujarati, Odia, Malayalam).",
             ],
         },
         "language_sections": grouped,

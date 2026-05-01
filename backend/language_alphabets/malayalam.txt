@@ -1,0 +1,28 @@
+LANGUAGE: Malayalam (മലയാളം)
+SCRIPT: Malayalam
+
+=== VOWELS (സ്വരങ്ങൾ) ===
+അ ആ ഇ ഈ ഉ ഊ ഋ ൠ ഌ ൡ എ ഏ ഐ ഒ ഓ ഔ അം അഃ
+
+=== CONSONANTS (വ്യഞ്ജനങ്ങൾ) ===
+ക ഖ ഗ ഘ ങ
+ച ഛ ജ ഝ ഞ
+ട ഠ ഡ ഢ ണ
+ത ഥ ദ ധ ന
+പ ഫ ബ ഭ മ
+യ ര ല വ
+ശ ഷ സ ഹ
+ള ഴ റ
+
+=== VOWEL SIGNS / MATRAS (ചിഹ്നങ്ങൾ) ===
+ാ ി ീ ു ൂ ൃ െ േ ൈ ൊ ോ ൌ ൗ ം ഃ ്
+
+=== CHILLU CHARACTERS ===
+ൻ ർ ൽ ൾ ൺ ൿ
+
+=== MALAYALAM NUMERALS ===
+൦ ൧ ൨ ൩ ൪ ൫ ൬ ൭ ൮ ൯
+
+=== COMMON MALAYALAM WORDS (Invoice Context) ===
+ഇൻവോയ്‌സ് ബിൽ പേര് വിലാസം തീയതി ആകെ നികുതി ഉൽപ്പന്നം
+കട വ്യാപാരം തിരുവനന്തപുരം കൊച്ചി കോഴിക്കോട്

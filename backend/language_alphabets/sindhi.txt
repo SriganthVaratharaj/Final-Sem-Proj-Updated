@@ -1,0 +1,8 @@
+LANGUAGE: Sindhi (سنڌي)
+SCRIPT: Arabic (Perso-Arabic with Sindhi-specific letters)
+
+=== LETTERS ===
+ا ب ٻ ڀ پ ت ٿ ٽ ث ج جه ڄ چ ڇ ح خ د ڌ ڏ ذ ر ڙ ز س ش ص ض ط ظ ع غ ف ق ڪ ک گ ڳ ڱ ل م ن ڻ و هه ء ي
+
+=== COMMON WORDS ===
+بل نالو پتو تاريخ ڪل ٽئڪس شيءِ دوڪان واپار ڪراچي حيدرآباد

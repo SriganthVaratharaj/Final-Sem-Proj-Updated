@@ -1,0 +1,45 @@
+# Environment and sensitive data
+.env
+**/.env.local
+
+# Backend / Python
+**/__pycache__/
+*.pyc
+
+# Database and Data
+sample_data/
+db/outputs/
+db/tmp/
+db/uploads/
+uploads/tmp/
+
+# Backend runtime outputs and uploads
+backend/db/outputs/
+backend/db/uploads/
+backend/db/tmp/
+
+# Large binary model files (llama server binary)
+backend/vlm/llama_server_bin/
+*.exe
+*.dll
+*.pyd
+
+# Local scratch/debug scripts
+scratch/
+hf_models/
+
+# Frontend / Node
+frontend/node_modules/
+frontend/dist/
+frontend/uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+llama.log
+*.log
+
+# External source code (not compiled, not needed in repo)
+tesseract-main/

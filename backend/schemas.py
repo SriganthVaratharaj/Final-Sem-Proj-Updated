@@ -60,6 +60,7 @@ class CombinedInvoiceResult(BaseModel):
     document_type: str = "unknown"
     layout_regions: list[dict[str, Any]] = Field(default_factory=list)
     detected_blocks: list[dict[str, Any]] = Field(default_factory=list)
+    structured_sections: dict[str, Any] = Field(default_factory=dict)
     layoutlm_status: dict[str, Any] = Field(default_factory=dict)
     layoutlm_embedding_preview: list[float] = Field(default_factory=list)
 

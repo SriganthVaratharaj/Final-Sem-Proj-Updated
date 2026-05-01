@@ -1,0 +1,9 @@
+{
+  "file_name": "bengali.png",
+  "extracted_data": {
+    "full_extraction": "css\nHeader Details:\n- Vendor Name: अर्जन किंग्स\n- Address: सान सोन चौक\n- Contact: 9810234567\n- Email: arjun@king.com\n\nInvoice Meta (Invoice Number, Date, GSTIN):\n- Invoice Number: अर्जन किंग्स/INV/001\n- Date: 2023-04-05\n- GSTIN: 27AAGST0001\n\nBuyer/Customer Details:\n- Name: अर्जन किंग्स\n- Address: सान सोन चौक\n- Contact: 9810234567\n- Email: arjun@king.com\n\nITEM LIST (Every single item, quantity, rate, and amount):\n- Item Name: अर्जन किंग्स/INV/001\n- Quantity: 1\n- Rate: 50\n- Amount: 50\n\nTax details (CGST, SGST, IGST):\n- CGST: 2.50\n- SGST: 2.50\n- IGST: 5.00\n\nTOTAL AMOUNT:\n- Total Amount: 100.00",
+    "is_comprehensive": true,
+    "_source": "vlm_descriptive_list"
+  },
+  "document_type": "invoice"
+}

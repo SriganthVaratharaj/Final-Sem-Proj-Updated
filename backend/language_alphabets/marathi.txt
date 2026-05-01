@@ -1,0 +1,30 @@
+LANGUAGE: Marathi (मराठी)
+SCRIPT: Devanagari (with Marathi-specific characters)
+
+=== VOWELS (स्वर) ===
+अ आ इ ई उ ऊ ऋ ॠ ऌ ॡ ए ऐ ओ औ अं अः
+
+=== MARATHI-SPECIFIC VOWELS ===
+ऍ ऑ
+
+=== CONSONANTS (व्यंजन) ===
+क ख ग घ ङ
+च छ ज झ ञ
+ट ठ ड ढ ण
+त थ द ध न
+प फ ब भ म
+य र ल ळ व
+श ष स ह
+
+=== VOWEL SIGNS / MATRAS (मात्रा) ===
+ा ि ी ु ू ृ े ै ो ौ ं ः ् ॅ ॉ
+
+=== MARATHI-SPECIFIC CHARACTERS ===
+ळ ऱ ॐ
+
+=== DEVANAGARI NUMERALS ===
+० १ २ ३ ४ ५ ६ ७ ८ ९
+
+=== COMMON MARATHI WORDS (Invoice Context) ===
+चलन बिल नाव पत्ता दिनांक रक्कम एकूण कर खर्च वस्तू
+दुकान व्यापार महाराष्ट्र पुणे मुंबई नागपूर

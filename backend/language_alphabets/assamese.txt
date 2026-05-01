@@ -1,0 +1,20 @@
+LANGUAGE: Assamese (অসমীয়া)
+SCRIPT: Bengali-Assamese
+
+=== VOWELS ===
+অ আ ই ঈ উ ঊ ঋ এ ঐ ও ঔ অং অঃ
+
+=== CONSONANTS ===
+ক খ গ ঘ ঙ চ ছ জ ঝ ঞ ট ঠ ড ঢ ণ ত থ দ ধ ন প ফ ব ভ মযৰলৱশষসহ
+
+=== ASSAMESE-SPECIFIC ===
+ড় ঢ় য় ৎ ৱ ৰ
+
+=== MATRAS ===
+া ি ী ু ূ ৃ ে ৈ ো ৌ ং ঃ ্
+
+=== NUMERALS ===
+০ ১ ২ ৩ ৪ ৫ ৬ ৭ ৮ ৯
+
+=== COMMON WORDS ===
+ইনভয়েচ বিল নাম ঠিকনা তাৰিখ মুঠ কৰ সামগ্ৰী দোকান ব্যৱসায় গুৱাহাটী

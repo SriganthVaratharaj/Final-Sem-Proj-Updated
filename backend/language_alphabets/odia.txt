@@ -1,0 +1,27 @@
+LANGUAGE: Odia / Oriya (ଓଡ଼ିଆ)
+SCRIPT: Odia
+
+=== VOWELS (ସ୍ୱର) ===
+ଅ ଆ ଇ ଈ ଉ ଊ ଋ ଌ ଏ ଐ ଓ ଔ ଅଂ ଅଃ
+
+=== CONSONANTS (ବ୍ୟଞ୍ଜନ) ===
+କ ଖ ଗ ଘ ଙ
+ଚ ଛ ଜ ଝ ଞ
+ଟ ଠ ଡ ଢ ଣ
+ତ ଥ ଦ ଧ ନ
+ପ ଫ ବ ଭ ମ
+ଯ ର ଲ ଳ ଵ
+ଶ ଷ ସ ହ
+
+=== SPECIAL ODIA CHARACTERS ===
+ଡ଼ ଢ଼ ୟ ୱ
+
+=== VOWEL SIGNS / MATRAS (ମାତ୍ରା) ===
+ା ି ୀ ୁ ୂ ୃ େ ୈ ୋ ୌ ଂ ଃ ୍
+
+=== ODIA NUMERALS ===
+୦ ୧ ୨ ୩ ୪ ୫ ୬ ୭ ୮ ୯
+
+=== COMMON ODIA WORDS (Invoice Context) ===
+ଇନ୍ ଭଏସ ବିଲ ନାମ ଠିକଣା ତାରିଖ ମୋଟ ଟ୍ୟାକ୍ସ ଜିନିଷ
+ଦୋକାନ ବ୍ୟବସାୟ ଭୁବନେଶ୍ୱର କଟକ

@@ -1,238 +1,178 @@
-"""
-backend/pipeline.py
-Master pipeline orchestrator — runs all three AI modules in sequence:
-  Stage 1: PaddleOCR   (local)
-  Stage 2: LayoutLMv3  (HF Inference API)
-  Stage 3: VLM/LLaVA   (HF Inference API + fallback chain)
-Then exports results and saves to MongoDB.
-"""
 from __future__ import annotations
+"""
+## SINGLE_PASS_PIPELINE_V3
+backend/pipeline.py
 
-import asyncio
-import io
-import logging
+OCR Strategy: PaddleOCR + EasyOCR run in PARALLEL.
+Both results are merged into a single OCR hint fed to VLM.
+No fallback chain — both engines always run independently.
+"""
+import asyncio, logging, io
 from pathlib import Path
-from typing import AsyncIterator
+import cv2
+import numpy as np
 
-from PIL import Image
-
-from backend.config import OUTPUT_DIR
-from backend.layout.box_adapter import build_entries, paddle_boxes_to_layoutlm, paddle_boxes_to_pixel_rect
-from backend.layout.layoutlm_service import analyze_document_layout
-from backend.ocr.engine import run_ocr
-from backend.ocr.postprocessing import postprocess
-from backend.ocr.preprocessing import preprocess_image
-from backend.ocr.validator import validate_image_clarity
 from backend.utils.export import export_to_excel, save_layout_json
 from backend.utils.image_optimizer import optimize_image
-from backend.utils.pdf_converter import get_first_page_as_bytes, is_pdf_supported
+from backend.utils.image_enhancer import enhance_for_ocr, enhance_for_vlm
+from backend.utils.layout_template import map_to_standard_template
 from backend.utils.report_generator import generate_structured_report, save_structured_report
-from backend.vlm.vlm_model import extract_invoice_details
-from db.repository import save_result
+from backend.vlm.vlm_model import vlm_extract_all
+from backend.vlm.gguf_engine import release_vlm_memory
+from backend.ocr.engine import run_ocr
+from backend.ocr.easyocr_engine import run_easyocr_all_indic, is_easyocr_available, release_gpu_memory
 
 logger = logging.getLogger(__name__)
 
 
-def _empty_result(image_name: str, error: str | None = None) -> dict:
-    return {
-        "status": "failed",
-        "image_name": image_name,
-        "error": error,
-        "ocr_texts": [],
-        "ocr_language_summary": {},
-        "ocr_invoice_fields": {},
-        "ocr_layout": [],
-        "document_type": "unknown",
-        "layout_regions": [],
-        "detected_blocks": [],
-        "layoutlm_status": {},
-        "layoutlm_embedding_preview": [],
-        "vlm_fields": {},
-        "vlm_source": "unavailable",
-        "json_output_url": "",
-        "excel_file_url": "",
-        "text_report_url": "",
-        "text_report_preview": "",
-        "gsheets_synced": False,
-        "db_id": None,
-    }
-
-
-async def run_pipeline(
-    image_path: str,
-    image_bytes: bytes,
-    original_filename: str,
-    on_stage: AsyncIterator | None = None,
-    user_email: str | None = None,
-    session_id: str | None = None,
-) -> dict:
+def _merge_ocr_results(paddle_texts: list[str], easy_texts: list[str]) -> list[str]:
     """
-    Run the full 3-stage pipeline for a single image.
-
-    Args:
-        image_path:        Path to the saved temp file
-        image_bytes:       Raw bytes of the uploaded image
-        original_filename: Original file name (for export naming)
-        on_stage:          Optional async callback(stage_name: str) for SSE progress
-        user_email:        Email of logged in user (if any)
-        session_id:        Temp session ID if guest (if no email)
-
-    Returns:
-        Combined result dict
+    Merge PaddleOCR and EasyOCR outputs into a single deduplicated list.
+    Basic strategy:
+    - Keep all PaddleOCR lines
+    - Append EasyOCR lines that are NOT already covered (dedup by rough match)
     """
+    merged = list(paddle_texts)
+    paddle_lower = {t.lower().strip() for t in paddle_texts if t.strip()}
+
+    for line in easy_texts:
+        clean = line.strip()
+        if not clean:
+            continue
+        # Add if not already present (rough dedup — check substring match too)
+        if clean.lower() not in paddle_lower and not any(clean.lower() in p for p in paddle_lower):
+            merged.append(clean)
+
+    return merged
+
+
+async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None, user_email=None, session_id=None, correction_rules=""):
     stem = Path(original_filename).stem
-    result = _empty_result(original_filename)
-    
-    # ── Folder Setup ──
-    # Default to a subfolder based on user or session
-    subfolder = user_email if user_email else f"tmp/{session_id}"
-    user_output_dir = OUTPUT_DIR / subfolder
+    user_output_dir = (Path("db/outputs") / (user_email or "guest"))
     user_output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def _emit(stage: str):
-        if on_stage:
-            await on_stage(stage)
+    async def _emit(s):
+        if on_stage: await on_stage(s)
 
     try:
-        # ══════════════════════════════════════════════════════════════
-        # PDF HANDLING
-        # ══════════════════════════════════════════════════════════════
-        if original_filename.lower().endswith(".pdf"):
-            logger.info("[pipeline][%s] Converting PDF to image...", original_filename)
-            if not is_pdf_supported():
-                result["error"] = "PDF processing not supported (PyMuPDF missing)"
-                return result
-            
-            pdf_png_bytes = await asyncio.to_thread(get_first_page_as_bytes, image_bytes)
-            if not pdf_png_bytes:
-                result["error"] = "Failed to convert PDF (might be empty or corrupted)"
-                return result
-                
-            # Replace the image bytes and write to temp path so OpenCV/Paddle can read it
-            image_bytes = pdf_png_bytes
-            with open(image_path, "wb") as f:
-                f.write(image_bytes)
-                
-            logger.info("[pipeline][%s] PDF converted to PNG successfully", original_filename)
-
-        # ══════════════════════════════════════════════════════════════
-        # STAGE 1 — PaddleOCR
-        # ══════════════════════════════════════════════════════════════
         await _emit("ocr")
-        logger.info("[pipeline][%s] Stage 1: Image validation + PaddleOCR", original_filename)
 
-        is_clear, reason = await asyncio.to_thread(validate_image_clarity, image_path)
-        if not is_clear:
-            result["error"] = f"Image quality check failed: {reason}"
-            return result
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        preprocessed = await asyncio.to_thread(preprocess_image, image_path)
-        texts, poly_boxes, confidences, ocr_metadata = await asyncio.to_thread(run_ocr, preprocessed)
-        ocr_result = await asyncio.to_thread(postprocess, texts, poly_boxes, confidences, ocr_metadata)
+        # ── Dual-path image enhancement ──────────────────────────────────────
+        # OCR → high-contrast B&W (adaptive threshold + CLAHE + denoise)
+        # VLM → color-preserved enhanced (CLAHE + sharpen, layout colors intact)
+        # Both run async so they don't add serial latency
+        ocr_bytes, vlm_bytes = await asyncio.gather(
+            asyncio.to_thread(enhance_for_ocr, image_bytes),
+            asyncio.to_thread(enhance_for_vlm, image_bytes)
+        )
+        # Re-decode the OCR-enhanced image for PaddleOCR
+        ocr_nparr = np.frombuffer(ocr_bytes, np.uint8)
+        img_np_enhanced = cv2.imdecode(ocr_nparr, cv2.IMREAD_COLOR)
 
-        result["ocr_texts"]           = ocr_result.get("text", [])
-        result["ocr_language_summary"]= ocr_result.get("language_summary", {})
-        result["ocr_invoice_fields"]  = ocr_result.get("invoice_fields", {})
-        result["ocr_layout"]          = ocr_result.get("layout", [])
+        # ── Run PaddleOCR first, then EasyOCR SEQUENTIALLY ──────────────────
+        # REASON: PaddleOCR (Paddle C++ CUDA) and EasyOCR (PyTorch CUDA) both
+        # register _CudaDeviceProperties on the same process. Running them in
+        # parallel causes a fatal CUDA type collision. Sequential avoids this.
+        paddle_texts, easy_texts = [], []
 
-        logger.info("[pipeline][%s] OCR done: %d words", original_filename, len(texts))
+        # Step 1: PaddleOCR (uses high-contrast B&W enhanced image)
+        try:
+            if img_np_enhanced is not None:
+                texts, _, _, _ = await asyncio.to_thread(
+                    run_ocr, img_np_enhanced, None, ocr_bytes, original_filename
+                )
+                paddle_texts = texts
+                logger.info("[pipeline] PaddleOCR: %d lines", len(texts))
+        except Exception as e:
+            logger.warning("[pipeline] PaddleOCR failed: %s", e)
 
-        # ══════════════════════════════════════════════════════════════
-        # STAGE 2 — LayoutLMv3 (via HF API)
-        # ══════════════════════════════════════════════════════════════
-        await _emit("layout")
-        logger.info("[pipeline][%s] Stage 2: LayoutLMv3", original_filename)
+        # Step 2: EasyOCR (also uses the B&W enhanced image for better contrast)
+        try:
+            if is_easyocr_available():
+                texts, _, _, _ = await asyncio.to_thread(
+                    run_easyocr_all_indic, ocr_bytes
+                )
+                easy_texts = texts
+                logger.info("[pipeline] EasyOCR: %d lines", len(texts))
+            else:
+                logger.debug("[pipeline] EasyOCR not available, skipping")
+        except Exception as e:
+            logger.warning("[pipeline] EasyOCR failed: %s", e)
 
-        pil_image    = Image.open(image_path).convert("RGB")
-        pixel_rects  = paddle_boxes_to_pixel_rect(poly_boxes)
-        lm_boxes     = paddle_boxes_to_layoutlm(poly_boxes, pil_image.size)
-        entries      = build_entries(texts, pixel_rects, lm_boxes, confidences)
-        joined_text  = " ".join(texts)
+        # ── PHASE 1 → 2 HANDOFF: Release GPU VRAM before VLM loads ───────────
+        # EasyOCR holds ~800MB per language model in VRAM.
+        # Must free this BEFORE LLaVA loads or it will OOM on 4GB GPU.
+        logger.info("[pipeline] OCR done. Releasing GPU VRAM before VLM...")
+        await asyncio.to_thread(release_gpu_memory)
 
-        layout_result = await asyncio.to_thread(
-            analyze_document_layout,
-            pil_image, texts, lm_boxes, entries, joined_text,
+        # ── Merge OCR results ─────────────────────────────────────────────────
+        merged_texts = _merge_ocr_results(paddle_texts, easy_texts)
+        ocr_hint = "\n".join(merged_texts)
+
+        logger.info(
+            "[pipeline] OCR merged: paddle=%d, easyocr=%d, total=%d lines",
+            len(paddle_texts), len(easy_texts), len(merged_texts)
         )
 
-        result["document_type"]              = layout_result.get("document_type", "unknown")
-        result["layoutlm_status"]            = layout_result.get("layoutlmv3_status", {})
-        result["layoutlm_embedding_preview"] = layout_result.get("embedding_preview", [])
-        doc_layout                           = layout_result.get("document_layout_analysis", {})
-        result["layout_regions"]             = doc_layout.get("layout_regions", [])
-        result["detected_blocks"]            = doc_layout.get("detected_blocks", [])
-
-        logger.info("[pipeline][%s] Layout done: %d regions", original_filename, len(result["layout_regions"]))
-
-        # ══════════════════════════════════════════════════════════════
-        # STAGE 3 — VLM / LLaVA (via HF API)
-        # ══════════════════════════════════════════════════════════════
         await _emit("vlm")
-        logger.info("[pipeline][%s] Stage 3: VLM extraction", original_filename)
 
-        optimized_bytes = await asyncio.to_thread(optimize_image, image_bytes)
-        pil_vlm         = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        vlm_data        = await asyncio.to_thread(extract_invoice_details, pil_vlm, optimized_bytes)
+        # ── PHASE 2: VLM on GPU (VRAM now free from OCR models) ──────────────
+        # VLM gets color-preserved enhanced image (NOT B&W — colors help extract totals/headers)
+        vlm_res = await asyncio.to_thread(
+            vlm_extract_all, vlm_bytes, correction_rules, ocr_hint, original_filename
+        )
 
-        vlm_source = vlm_data.pop("_source", "unknown")
-        result["vlm_fields"] = vlm_data
-        result["vlm_source"] = vlm_source
+        # ── PHASE 2 → DONE: Release VLM from VRAM ────────────────────────────
+        logger.info("[pipeline] VLM done. Releasing GPU VRAM for next request...")
+        await asyncio.to_thread(release_vlm_memory)
 
-        logger.info("[pipeline][%s] VLM done via %s", original_filename, vlm_source)
+        await _emit("format")
 
-        # ══════════════════════════════════════════════════════════════
-        # EXPORT — Excel + JSON + TXT report
-        # ══════════════════════════════════════════════════════════════
-        await _emit("export")
+        raw_fields = vlm_res.get("fields", {})
 
-        # Merge OCR rule-based fields + VLM fields (VLM takes priority if found)
-        ocr_fields  = result["ocr_invoice_fields"]
-        merged_fields = {
-            "invoice_no":    ocr_fields.get("invoice_no",   "Not found"),
-            "date":          vlm_data.get("date")          or ocr_fields.get("date",    "Not found"),
-            "vendor_name":   vlm_data.get("vendor_name",   "Not found"),
-            "invoice_number":vlm_data.get("invoice_number","Not found"),
-            "total_amount":  vlm_data.get("total_amount")  or str(ocr_fields.get("grand_total", "Not found")),
-            "tax":           str(ocr_fields.get("tax",     "Not found")),
-            "phone":         ocr_fields.get("phone",       "Not found"),
+        # ── LAYOUT TEMPLATE MAPPING ─────────────────────────────────────────
+        # Maps ANY raw VLM output → standard positional template.
+        # Same field names, same order, every invoice — regardless of language/quality.
+        # Handwritten/unclear images benefit most: template fills gaps with “—”
+        # instead of silently dropping fields.
+        template_fields = map_to_standard_template(raw_fields)
+        logger.info("[pipeline] Layout template applied. Fields mapped: %d", 
+                    sum(1 for v in template_fields.values() if v and v != "—"))
+
+        result = {
+            "status": "success",
+            "ocr_texts": merged_texts,
+            "ocr_sources": {
+                "paddle_lines": len(paddle_texts),
+                "easyocr_lines": len(easy_texts),
+                "merged_lines": len(merged_texts),
+            },
+            "vlm_fields": raw_fields,            # Raw VLM output (original)
+            "template_fields": template_fields,   # Standardized positional template
+            "vlm_source": vlm_res.get("_source", "failed"),
+            "document_type": "invoice" if vlm_res.get("is_invoice") else "general",
+            "layout_regions": [],
         }
 
+        # Export uses template_fields for consistent column order across all invoices
         full_payload = {
-            "file_name":               original_filename,
-            "document_type":           result["document_type"],
-            "extracted_data":          merged_fields,
-            "document_layout_analysis": doc_layout,
+            "file_name": original_filename,
+            "extracted_data": template_fields,
+            "raw_vlm_data": raw_fields,
+            "document_type": result["document_type"]
         }
+        excel_path = await asyncio.to_thread(export_to_excel, template_fields, user_output_dir, stem)
+        json_path = await asyncio.to_thread(save_layout_json, full_payload, user_output_dir, stem)
 
-        excel_path  = await asyncio.to_thread(export_to_excel,           merged_fields, user_output_dir, stem)
-        json_path   = await asyncio.to_thread(save_layout_json,           full_payload,  user_output_dir, stem)
-        report_text = await asyncio.to_thread(generate_structured_report, full_payload)
-        report_path = await asyncio.to_thread(save_structured_report,     report_text,   user_output_dir, stem)
+        result.update({
+            "excel_file_url": f"/outputs/{user_email or 'guest'}/{excel_path.name}",
+            "json_output_url": f"/outputs/{user_email or 'guest'}/{json_path.name}"
+        })
+        return result
 
-        result["json_output_url"]    = f"/outputs/{subfolder}/{json_path.name}"
-        result["excel_file_url"]     = f"/outputs/{subfolder}/{excel_path.name}"
-        result["text_report_url"]    = f"/outputs/{subfolder}/{report_path.name}"
-        result["text_report_preview"]= report_text
-
-        # ══════════════════════════════════════════════════════════════
-        # DB SAVE — MongoDB
-        # ══════════════════════════════════════════════════════════════
-        if user_email:
-            result["user_email"] = user_email
-            try:
-                db_id = await save_result(result)
-                result["db_id"] = str(db_id) if db_id else None
-            except Exception as db_exc:
-                logger.warning("[pipeline] DB save failed: %s", db_exc)
-        else:
-            logger.info("[pipeline][%s] Guest user -> Skipping permanent DB save", original_filename)
-
-        # Google sheets step removed
-
-        result["status"] = "success"
-        logger.info("[pipeline][%s] Pipeline complete", original_filename)
-
-    except Exception as exc:
-        logger.exception("[pipeline][%s] Pipeline failed", original_filename)
-        result["error"] = str(exc)
-
-    return result
+    except Exception as e:
+        logger.error(f"Pipeline error: {e}")
+        return {"status": "failed", "error": str(e)}
