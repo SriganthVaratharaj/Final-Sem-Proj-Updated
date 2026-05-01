@@ -47,11 +47,15 @@ def reconstruct_spatial_text(
             continue
             
         # 1. Calculate center and dimensions in original pixels
-        x_coords = [p[0] for p in box]
-        y_coords = [p[1] for p in box]
-        
-        xmin, xmax = min(x_coords), max(x_coords)
-        ymin, ymax = min(y_coords), max(y_coords)
+        if isinstance(box[0], (list, tuple)):
+            # Nested list: [[x1,y1], [x2,y2], ...]
+            x_coords = [p[0] for p in box]
+            y_coords = [p[1] for p in box]
+            xmin, xmax = min(x_coords), max(x_coords)
+            ymin, ymax = min(y_coords), max(y_coords)
+        else:
+            # Flat list: [x1, y1, x2, y2]
+            xmin, ymin, xmax, ymax = box[:4]
         
         # 2. Normalize to grid coordinates
         # Map [0, image_width] -> [0, grid_width-1]

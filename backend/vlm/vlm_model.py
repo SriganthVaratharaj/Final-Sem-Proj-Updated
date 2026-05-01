@@ -58,15 +58,8 @@ def _clean_output(text: str) -> dict | None:
             text = json.loads(f'"{text}"') if text.startswith('"') else text.replace('\\"', '"')
         except Exception:
             pass
-    # Try to extract JSON if it exists
-    match = re.search(r"\{[^{}]*\}", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except:
-            pass
-            
-    # If no JSON or parsing fails, return as a structured block
+    # We explicitly asked for Markdown, NOT JSON. 
+    # Do not parse {}, just return the full text for the Digital Twin.
     return {
         "full_extraction": text.strip(),
         "is_comprehensive": True,
@@ -156,37 +149,39 @@ def _count_distinct_script_families(detected_langs: list[str]) -> int:
     return families_hit
 
 def _load_reference_alphabets(ocr_hint: str = "") -> str:
-    """Load ONLY the language alphabet files that match scripts found in OCR hint.
-    Falls back to all languages if OCR hint is empty or no script detected.
-    This keeps prompt size small and prevents context overflow.
+    """Load ONLY the primary detected language alphabet.
+    Strictly limited to prevent context overflow on 4GB VRAM (n_ctx=4096).
     """
     alphabets_dir = Path(__file__).parent.parent / "language_alphabets"
     if not alphabets_dir.exists(): return ""
 
-    # Detect which scripts appear in the OCR text
     detected_langs = _detect_scripts(ocr_hint) if ocr_hint else []
-    
-    # Always include English (it's in every invoice)
-    # If nothing detected, try all (small invoice, no Indic text)
+
     if not detected_langs:
         logger.info("[vlm] No Indic script in OCR hint — skipping alphabet injection to save tokens.")
-        return ""  # No injection needed for pure-English or unknown invoices
+        return ""
 
-    logger.info("[vlm] Detected scripts: %s — injecting targeted alphabets.", detected_langs)
+    # ── VRAM-safe: inject at most 2 scripts, 200 chars each ──────────────────
+    # Priority: bengali > hindi > tamil > others
+    priority_order = ["bengali", "assamese", "hindi", "marathi", "tamil", "telugu", "kannada", "gujarati", "malayalam", "odia", "punjabi", "maithili"]
+    selected = [l for l in priority_order if l in detected_langs][:2]  # max 2 scripts
+
+    if not selected:
+        selected = detected_langs[:1]  # fallback: first detected
+
+    logger.info("[vlm] Detected scripts: %s — injecting targeted alphabets.", selected)
 
     ref_text = "[REFERENCE ALPHABETS FOR LANGUAGE DETECTION]\n"
     ref_text += "Match these chars against image to identify the script. DO NOT copy these into your output.\n"
     for file in alphabets_dir.glob("*.txt"):
-        if file.stem.lower() in detected_langs:
-            # Only keep lines with actual characters (skip section headers)
+        if file.stem.lower() in selected:
             content = file.read_text(encoding="utf-8")
-            # Extract only the character lines (strip verbose headers)
             char_lines = []
             for line in content.splitlines():
                 line = line.strip()
                 if line and not line.startswith("===") and not line.startswith("LANGUAGE") and not line.startswith("SCRIPT"):
                     char_lines.append(line)
-            compact = " ".join(char_lines)[:600]  # Hard cap: 600 chars per language
+            compact = " ".join(char_lines)[:200]  # Hard cap: 200 chars per script (was 600)
             ref_text += f"{file.stem.capitalize()}: {compact}\n"
     ref_text += "[/REFERENCE ALPHABETS]\n"
     return ref_text

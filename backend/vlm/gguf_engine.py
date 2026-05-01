@@ -1,6 +1,6 @@
 """
 backend/vlm/gguf_engine.py
-Inference engine for GGUF models using standalone llama-server for 100% CUDA execution.
+Inference engine for GGUF models using standalone llama-server (GPU CUDA execution).
 """
 import os
 import subprocess
@@ -70,87 +70,81 @@ def _load_gguf_model():
         "-c", str(VLM_LOCAL_N_CTX),
         "-ngl", "99",
         "--port", str(port),
-        "-cb" # continuous batching
+        "-cb"  # continuous batching
     ]
     
     logger.info(f"[gguf] Launching standalone CUDA server to force 100% GPU execution...")
-    # Use absolute path for log — relative paths break when CWD != project root
     _project_root = Path(__file__).resolve().parent.parent.parent
     log_path = _project_root / "scratch" / "llama_server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_file = open(log_path, "w")
-    _llama_process = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT)
-    
-    ready = False
-    for i in range(30):
-        try:
-            req = urllib.request.Request(f"http://127.0.0.1:{port}/health")
-            with urllib.request.urlopen(req) as response:
-                if response.status == 200:
-                    ready = True
-                    break
-        except Exception:
-            time.sleep(1)
-            
-    if ready:
-        logger.info("[gguf] Standalone GPU Server is ONLINE.")
-        _llama_client = StandaloneLlamaClient(port=port)
-        return _llama_client
-    else:
-        logger.error("[gguf] GPU Server failed to start.")
-        if _llama_process:
-            _llama_process.terminate()
-            _llama_process = None
-        return None
 
-def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = None) -> str:
-    if api_key != INTERNAL_MODEL_API_KEY: return 'UNAUTHORIZED'
-    
-    client = _load_gguf_model()
-    if client is None: return 'LOAD_FAILED'
-    
-    try:
-        if not image_bytes or image_bytes == b"DUMMY":
-            if "Filter" in prompt: return prompt
-            return "ERROR: No image"
-        
-        b64 = base64.b64encode(image_bytes).decode('utf-8')
-        msgs = [
-            {
-                'role': 'system',
-                'content': 'You are an expert document data extractor. Extract the information exactly as requested. Never repeat the prompt.'
-            },
-            {
-                'role': 'user',
-                'content': [
-                    {'type': 'image_url', 'image_url': {'url': f'data:image/jpeg;base64,{b64}'}},
-                    {'type': 'text', 'text': prompt}
-                ]
-            }
-        ]
-        res = client.create_chat_completion(
-            messages=msgs,
-            max_tokens=VLM_LOCAL_MAX_NEW_TOKENS,
-            temperature=0.1,  # Small temperature helps avoid infinite junk token loops
-            frequency_penalty=1.2, # Strong penalty to stop the model from repeating words like "Market Market Market"
-            presence_penalty=0.5
+    with open(log_path, "w") as log_file:
+        _llama_process = subprocess.Popen(
+            cmd,
+            stdout=log_file,
+            stderr=log_file,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         )
-        return res['choices'][0]['message']['content']
-    except Exception as e: return str(e)
+
+    # Wait for server to be ready (up to 60s)
+    for _ in range(120):
+        time.sleep(0.5)
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
+            logger.info("[gguf] Standalone GPU Server is ONLINE.")
+            _llama_client = StandaloneLlamaClient(port=port)
+            return _llama_client
+        except Exception:
+            pass
+
+    logger.error("[gguf] Server failed to start within timeout.")
+    return None
+
+
+def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "") -> str:
+    client = _load_gguf_model()
+    if client is None:
+        return "ERROR: Model not available"
+
+    try:
+        messages = []
+        if image_bytes:
+            b64 = base64.b64encode(image_bytes).decode("utf-8")
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                    {"type": "text", "text": prompt}
+                ]
+            })
+        else:
+            messages.append({"role": "user", "content": prompt})
+
+        response = client.create_chat_completion(
+            messages=messages,
+            max_tokens=VLM_LOCAL_MAX_NEW_TOKENS,
+            temperature=0.0
+        )
+        return response["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error("[gguf] query failed: %s", e)
+        return f"ERROR: {e}"
+
+
+def query_local_paddle_vl(image_bytes: bytes, prompt: str) -> str:
+    return query_local_llava(image_bytes, prompt, INTERNAL_MODEL_API_KEY)
+
 
 def release_vlm_memory():
-    """Kill the server to free up the 4GB GPU VRAM."""
+    """Kill the llama-server process to free VRAM."""
     global _llama_process, _llama_client
+    _llama_client = None
     if _llama_process is not None:
         try:
             _llama_process.terminate()
             _llama_process.wait(timeout=5)
             logger.info("[gguf] Standalone GPU Server killed. VRAM released.")
         except Exception as e:
-            logger.warning(f"[gguf] Failed to gracefully kill GPU Server: {e}, force killing.")
-            _llama_process.kill()
-        
-        _llama_process = None
-        _llama_client = None
-
-query_local_paddle_vl = query_local_llava
+            logger.warning("[gguf] Error killing server: %s", e)
+        finally:
+            _llama_process = None
