@@ -68,15 +68,17 @@ def reconstruct_spatial_text(
         row = max(0, min(row, grid_height - 1))
         col_start = max(0, min(col_start, grid_width - 1))
         
-        # 3. Place text into grid
-        # If the slot is already taken, we append or find next available space
-        # (Very basic collision handling)
-        for i, char in enumerate(text):
-            curr_col = col_start + i
-            if curr_col < grid_width:
-                # If we're overwriting something that isn't a space, 
-                # maybe we keep the longer string or just overwrite
-                grid[row][curr_col] = char
+        # 3. Place text into grid as a single block
+        # This preserves complex Indic ligatures and combining marks
+        if col_start < grid_width:
+            # Overwrite the grid cell with the FULL string
+            grid[row][col_start] = text
+            # Empty out the subsequent cells so they don't shift the layout
+            # Assuming 'text' visually takes about len(text)/1.5 monospace cells
+            visual_len = max(1, int(len(text) * 0.7))
+            for i in range(1, visual_len):
+                if col_start + i < grid_width:
+                    grid[row][col_start + i] = ""
 
     # 4. Convert grid to string
     lines = []

@@ -104,7 +104,9 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
 
             await asyncio.to_thread(release_gpu_memory)
             merged_texts, merged_boxes = _merge_ocr_results(p_res, e_res)
-            ocr_hint = "\n".join(merged_texts)
+            # Trim OCR hint to prevent context overflow on 4GB VRAM
+            ocr_hint_full = "\n".join(merged_texts)
+            ocr_hint = ocr_hint_full[:600] if len(ocr_hint_full) > 600 else ocr_hint_full
 
             # ── Step 3: OpenCV Table Detection ───────────────────────────────────
             table_boxes = await asyncio.to_thread(detect_tables_opencv, seg_bytes)
@@ -126,8 +128,7 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
 
             # ── Step 5: Digital Twin ─────────────────────────────────────────────
             from backend.utils.layout_reconstructor import reconstruct_spatial_text
-            img_seg = Image.open(io.BytesIO(seg_bytes))
-            sw, sh = img_seg.size
+            sh, sw = img_np_enhanced.shape[:2]  # Use enhanced dimensions!
             twin_text = reconstruct_spatial_text(merged_texts, merged_boxes, sw, sh)
             
             vlm_text = vlm_res.get("fields", {}).get("full_extraction", "")
