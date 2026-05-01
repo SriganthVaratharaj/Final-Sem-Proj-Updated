@@ -69,16 +69,20 @@ def reconstruct_spatial_text(
         col_start = max(0, min(col_start, grid_width - 1))
         
         # 3. Place text into grid as a single block
-        # This preserves complex Indic ligatures and combining marks
         if col_start < grid_width:
             # Overwrite the grid cell with the FULL string
             grid[row][col_start] = text
-            # Empty out the subsequent cells so they don't shift the layout
-            # Assuming 'text' visually takes about len(text)/1.5 monospace cells
-            visual_len = max(1, int(len(text) * 0.7))
-            for i in range(1, visual_len):
+            # To maintain the EXACT horizontal alignment of subsequent items on this line,
+            # we MUST remove (len(text) - 1) spaces from the grid, so the row length stays constant.
+            # Otherwise, inserting a 5-char string into 1 cell pushes everything right by 4 chars.
+            # We'll calculate a 'visual' length to remove. For Indic text, it's tricky, but
+            # len(text) is a safe upper bound. Let's remove spaces immediately following.
+            visual_len = len(text)
+            spaces_to_remove = visual_len - 1
+            for i in range(1, spaces_to_remove + 1):
                 if col_start + i < grid_width:
-                    grid[row][col_start + i] = ""
+                    grid[row][col_start + i] = ""  # Empty string removes the space
+
 
     # 4. Convert grid to string
     lines = []

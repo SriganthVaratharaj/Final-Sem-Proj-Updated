@@ -63,15 +63,23 @@ export default function VlmTab({ result }) {
             <div className="h-4 w-1 bg-gray-400 rounded-full"></div>
             <h3 className="text-sm font-bold text-gray-600">Raw Model Extraction</h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {Object.entries(rawFields).map(([k, v]) => (
-              <FieldCard
-                key={k}
-                label={k.replace(/_/g, ' ')}
-                value={v}
-              />
-            ))}
-          </div>
+          {rawFields.full_extraction ? (
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-2">
+              <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
+                {rawFields.full_extraction}
+              </pre>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(rawFields).map(([k, v]) => (
+                <FieldCard
+                  key={k}
+                  label={k.replace(/_/g, ' ')}
+                  value={v}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

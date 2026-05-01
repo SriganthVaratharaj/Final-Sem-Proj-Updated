@@ -141,9 +141,20 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
         final_vlm = "\n\n---\n\n### SECOND BILL ###\n\n".join(combined_vlm_parts) if len(combined_vlm_parts) > 1 else combined_vlm_parts[0]
         final_twin = "\n\n---\n\n".join(combined_twin_parts)
 
+        # We use the FIRST segment's fields for structured output
+        first_res = vlm_res if image_segments else {"fields": {}, "_source": "unavailable"}
+        raw_fields = first_res.get("fields", {})
+        source = first_res.get("_source", "unavailable")
+        
+        from backend.utils.layout_template import map_to_standard_template
+        template_fields = map_to_standard_template(raw_fields)
+
         return {
             "status": "success",
             "vlm_output": final_vlm,
+            "vlm_fields": raw_fields,
+            "template_fields": template_fields,
+            "vlm_source": source,
             "digital_twin_content": final_twin,
             "metadata": {
                 "segments_processed": len(image_segments),
