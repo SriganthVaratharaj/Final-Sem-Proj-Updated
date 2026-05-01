@@ -1,21 +1,21 @@
-# 🧾 Invoice AI — Multilingual Invoice Extraction System
+# 🧾 Invoice AI — Multilingual Invoice Digital Twin System
 
-A production-ready web application for automated invoice data extraction from images in **14 Indian languages**. Combines GPU-accelerated OCR, Vision-Language Models, and adaptive image preprocessing to convert unstructured invoice images — including handwritten and artistic-font documents — into structured, standardised data.
+A production-ready web application for automated invoice data extraction and **spatial digital twin reconstruction** from images in **14 Indian languages**. Combines GPU-accelerated OCR, LayoutLMv3, Vision-Language Models (VLM), and adaptive image compounding to convert unstructured invoice images — including handwritten and artistic-font documents — into structured, standardised data and layout-preserving Markdown/TXT exports.
 
 ---
 
 ## 🏗️ Architecture
 
-```
+```text
 Upload Image
      │
      ▼
 ┌────────────────────────────────────────────┐
-│  PHASE 1 — Dual-Path Image Enhancement     │
+│  PHASE 1 — Image Preprocessing             │
 │  ┌──────────────────┐  ┌────────────────┐  │
 │  │ OCR Path         │  │ VLM Path       │  │
-│  │ Adaptive B&W     │  │ Color-preserved│  │
-│  │ CLAHE + Denoise  │  │ CLAHE + Sharpen│  │
+│  │ Dual-Pass B&W    │  │ Color-preserved│  │
+│  │ (Sauvola style)  │  │ CLAHE + Sharpen│  │
 │  └──────────────────┘  └────────────────┘  │
 └────────────────────────────────────────────┘
      │                          │
@@ -31,27 +31,32 @@ Upload Image
          ┌────────────────┐
          │ Cross-script   │
          │ contamination? │
-         │ → Discard hint │
+         │ → Keep Hint    │
          └────────────────┘
                   │
                   ▼
 ┌────────────────────────────────────────────┐
-│  PHASE 2 — Standalone CUDA Llama Server    │
-│  Qwen3-VL-4B (GGUF Q4_K_M)               │
-│  100% GPU offload — NVIDIA GTX 1650        │
-│  Smart alphabet injection (per-script)     │
-│  Empty output → auto-retry image-only      │
+│  PHASE 2 — Spatial Layout & Compounding    │
+│  1. OpenCV Table/Grid Detection            │
+│  2. LayoutLMv3 Regional Analysis (Local)   │
+│  3. Image Compounding (Full Image +        │
+│     High-Res Table Zoom) sent to VLM       │
 └────────────────────────────────────────────┘
                   │
                   ▼
 ┌────────────────────────────────────────────┐
-│  PHASE 3 — Layout Template Mapper          │
-│  Raw VLM fields → Standardised Schema      │
-│  Same field positions across all invoices  │
+│  PHASE 3 — Standalone CUDA Llama Server    │
+│  Qwen3-VL-4B (GGUF Q4_K_M)                 │
+│  100% GPU offload — NVIDIA GTX 1650        │
+│  Smart alphabet injection (per-script)     │
 └────────────────────────────────────────────┘
                   │
                   ▼
-         Excel / JSON Export
+┌────────────────────────────────────────────┐
+│  PHASE 4 — Digital Twin & Standardization  │
+│  Raw VLM fields → Standardised Schema      │
+│  Markdown Table → Spatial TXT / DOCX       │
+└────────────────────────────────────────────┘
 ```
 
 ---
@@ -59,85 +64,47 @@ Upload Image
 ## ✨ Key Features
 
 ### 🌏 14-Language Multilingual Support
-Full character reference alphabets for:
+Full character reference alphabets for Devanagari, Bengali, Dravidian, Indo-Aryan, and Arabic-based scripts. Smart Unicode detection injects only relevant alphabets to prevent token overflow.
 
-| Script Family | Languages |
-|:---|:---|
-| Devanagari | Hindi, Marathi, Maithili |
-| Bengali-Assamese | Bengali, Assamese |
-| Dravidian | Tamil, Telugu, Kannada, Malayalam |
-| Indo-Aryan | Gujarati, Odia, Punjabi (Gurmukhi) |
-| Arabic-based | Urdu, Sindhi |
+### 🖼️ Advanced Image Compounding (Divide & Conquer)
+- **Dual-Pass Binarization:** Uses Sauvola-inspired local adaptive thresholding to preserve tiny Indic matras (vowels) which standard Otsu destroys.
+- **Image Compounding:** Generates a composite image containing the full document + a high-resolution zoomed crop of the detected table region. This gives the VLM both "Big Picture" context and "Close-up" clarity for small table fonts.
 
-### 🤖 Smart Script Detection
-- Detects Unicode script ranges in OCR output automatically
-- Injects **only relevant** language alphabets into VLM prompt (prevents context overflow)
-- Cross-script contamination detection: if OCR reads multiple conflicting scripts (e.g., artistic fonts), hint is discarded and VLM reads image directly
-- Auto-retry with image-only mode when VLM returns empty output
-
-### 🖼️ Dual-Path Image Enhancement
-| Path | Purpose | Processing |
-|:---|:---|:---|
-| **OCR Path** | High contrast for text recognition | Upscale → Deskew → Denoise → CLAHE → Adaptive B&W → Sharpen |
-| **VLM Path** | Color-preserved for layout understanding | Upscale → Deskew → CLAHE → Conservative Sharpen |
-
-Both paths run **in parallel** — zero added latency.
-
-### 📐 Standardised Layout Template
-Every extraction — regardless of language, font style, or image quality — maps to the **same fixed schema**:
-
-```
-┌──────────────────────┬──────────────────────┐
-│ vendor_name          │ invoice_number        │
-│ vendor_address       │ invoice_date          │
-│ vendor_gstin         │ due_date / po_number  │
-├──────────────────────┼──────────────────────┤
-│ buyer_name           │ buyer_address         │
-│ buyer_gstin          │                       │
-├──────────────────────┴──────────────────────┤
-│              items (line items table)        │
-├─────────────────────────────────────────────┤
-│ subtotal │ cgst │ sgst │ igst │ total_amount │
-├─────────────────────────────────────────────┤
-│ bank_name │ account_number │ ifsc │ upi      │
-└─────────────────────────────────────────────┘
-```
-
-Missing fields appear as empty — never silently dropped. Especially useful for handwritten or low-quality invoice images.
+### 📐 Digital Twin (Spatial Reconstruction)
+- **OpenCV Table Detection:** Automatically finds and draws table bounding boxes to visually guide the VLM.
+- **LayoutLMv3:** Local fallback execution for region classification (Header, Body, Footer).
+- **Format Preservation:** Exports extracted data into a visually faithful `.txt` and `.docx` spatial grid, retaining the original invoice layout (Digital Twin).
 
 ### ⚡ 100% GPU Execution on 4GB VRAM
-- Standalone `llama-server.exe` subprocess (llama.cpp release build with CUDA 12.4)
-- 99 layers offloaded to NVIDIA GPU — zero CPU inference
-- Automatic VRAM release between OCR and VLM phases (prevents OOM)
-- Context window: 8192 tokens with smart prompt sizing
-
-### 📱 Real-time Web UI
-- React + Vite frontend with live progress via Server-Sent Events (SSE)
-- Tabs: OCR → Layout → VLM → Exports
-- Export as Excel (`.xlsx`) or JSON
+- Strict sequential execution with explicit memory clearing (`release_gpu_memory`, `release_layoutlm_memory`, `release_vlm_memory`) prevents PyTorch/Paddle CUDA Out-Of-Memory errors on a 4GB GTX 1650.
+- Runs `llama-server.exe` (llama.cpp) as a standalone subprocess for the 4B Vision Language Model.
 
 ---
 
 ## 🛠️ Project Structure
 
-```
+```text
 Final-Sem-Proj-Updated/
 ├── backend/
 │   ├── main.py                    # FastAPI entry point
-│   ├── pipeline.py                # 3-phase orchestration engine
+│   ├── pipeline.py                # 4-phase orchestration engine
 │   ├── config.py                  # Model paths, context settings
+│   ├── layout/
+│   │   ├── layoutlm_service.py    # LayoutLMv3 API & Local execution
+│   │   └── box_adapter.py         # Box scaling utilities
 │   ├── ocr/
 │   │   ├── engine.py              # PaddleOCR wrapper
 │   │   └── easyocr_engine.py      # EasyOCR (all Indic scripts)
 │   ├── vlm/
-│   │   ├── vlm_model.py           # VLM prompt building + smart injection
-│   │   └── gguf_engine.py         # Standalone llama-server CUDA client
+│   │   ├── vlm_model.py           # VLM prompt building
+│   │   └── gguf_engine.py         # Standalone llama-server client
 │   ├── utils/
-│   │   ├── image_enhancer.py      # Dual-path preprocessing (OCR + VLM)
-│   │   ├── layout_template.py     # Standardised field schema mapper
-│   │   ├── image_optimizer.py     # Legacy VLM resize wrapper
+│   │   ├── image_enhancer.py      # Image compounding & dual-pass B&W
+│   │   ├── layout_reconstructor.py# Digital Twin TXT/DOCX generation
+│   │   ├── table_detector.py      # OpenCV table contour detection
+│   │   ├── layout_template.py     # Standardised schema mapper
 │   │   └── export.py              # Excel + JSON export
-│   └── language_alphabets/        # 14 Indian language character reference files
+│   └── language_alphabets/        # 14 Indian language txt references
 │       ├── tamil.txt
 │       ├── hindi.txt
 │       ├── bengali.txt

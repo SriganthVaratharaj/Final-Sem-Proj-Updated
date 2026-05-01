@@ -2,17 +2,18 @@ import { useState } from 'react'
 import OcrTab from './tabs/OcrTab'
 import LayoutTab from './tabs/LayoutTab'
 import VlmTab from './tabs/VlmTab'
+import DigitalTwinTab from './tabs/DigitalTwinTab'
 import ExportsTab from './tabs/ExportsTab'
 
 const TABS = [
+  { key: 'digital_twin', label: 'Digital Twin' },
   { key: 'ocr', label: 'OCR' },
-  { key: 'layout', label: 'Layout' },
   { key: 'vlm', label: 'VLM' },
   { key: 'exports', label: 'Exports' },
 ]
 
 function ResultCard({ result, defaultOpen }) {
-  const [active, setActive] = useState('ocr')
+  const [active, setActive] = useState('digital_twin')
   const [expanded, setExpanded] = useState(defaultOpen)
 
   const success = result.status === 'success'
@@ -61,6 +62,7 @@ function ResultCard({ result, defaultOpen }) {
           </div>
 
           <div className="p-4">
+            {active === 'digital_twin' && <DigitalTwinTab result={result} />}
             {active === 'ocr' && <OcrTab result={result} />}
             {active === 'layout' && <LayoutTab result={result} />}
             {active === 'vlm' && <VlmTab result={result} />}

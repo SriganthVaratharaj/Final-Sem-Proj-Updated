@@ -23,11 +23,13 @@ class StandaloneLlamaClient:
     def __init__(self, port=8080):
         self.url = f"http://127.0.0.1:{port}/v1/chat/completions"
 
-    def create_chat_completion(self, messages, max_tokens=512, temperature=0.0):
+    def create_chat_completion(self, messages, max_tokens=512, temperature=0.0, frequency_penalty=0.0, presence_penalty=0.0):
         payload = json.dumps({
             "messages": messages,
             "max_tokens": max_tokens,
-            "temperature": temperature
+            "temperature": temperature,
+            "frequency_penalty": frequency_penalty,
+            "presence_penalty": presence_penalty
         }).encode('utf-8')
         
         req = urllib.request.Request(self.url, data=payload, headers={'Content-Type': 'application/json'})
@@ -129,7 +131,9 @@ def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = None) -> s
         res = client.create_chat_completion(
             messages=msgs,
             max_tokens=VLM_LOCAL_MAX_NEW_TOKENS,
-            temperature=0.0
+            temperature=0.1,  # Small temperature helps avoid infinite junk token loops
+            frequency_penalty=1.2, # Strong penalty to stop the model from repeating words like "Market Market Market"
+            presence_penalty=0.5
         )
         return res['choices'][0]['message']['content']
     except Exception as e: return str(e)

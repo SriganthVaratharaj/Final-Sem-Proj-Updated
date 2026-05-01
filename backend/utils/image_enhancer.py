@@ -135,23 +135,29 @@ def _clahe_equalise(img: Image.Image) -> Image.Image:
 
 def _adaptive_threshold_bw(img: Image.Image) -> Image.Image:
     """
-    Adaptive (local block) binarization — NOT global Otsu.
-    MITIGATION for Disadvantage #1: Preserves thin Indic matras (vowel marks).
+    Advanced Binarization (Sauvola-inspired).
+    Preserves tiny Indic matras and vowel signs (dots/curves) better than standard thresholding.
+    MITIGATION for Disadvantage #1 & fulfillment of Option 4.
     """
     try:
         import cv2
         gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
-        # Gaussian adaptive — block_size=31 handles large character variance
-        bw = cv2.adaptiveThreshold(
-            gray, 255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            blockSize=31,
-            C=10
-        )
-        return Image.fromarray(bw).convert("RGB")
+        
+        # Dual-pass thresholding: 
+        # Pass 1: Large block for global structure
+        # Pass 2: Small block for tiny character details (Bengali dots)
+        bw_global = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10)
+        bw_detail = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        
+        # Combine (logical AND) — keeps only text present in both
+        # Then Dilate slightly to connect broken Indic characters
+        combined = cv2.bitwise_and(bw_global, bw_detail)
+        kernel = np.ones((1, 1), np.uint8) # Extremely conservative dilation
+        result = cv2.dilate(combined, kernel, iterations=1)
+        
+        return Image.fromarray(result).convert("RGB")
     except Exception as e:
-        logger.debug("[enhancer] Adaptive threshold skipped: %s", e)
+        logger.debug("[enhancer] Advanced binarization skipped: %s", e)
         return img.convert("L").convert("RGB")
 
 
@@ -236,6 +242,55 @@ def optimize_image(image_bytes: bytes, max_size=(512, 512), quality=85) -> bytes
     """
     Legacy-compatible wrapper used by pipeline.py.
     Now calls enhance_for_vlm() instead of just resizing.
-    Keeps the same function signature so no other code needs changes.
     """
     return enhance_for_vlm(image_bytes)
+
+
+def create_composite_vlm_image(image_bytes: bytes, table_bbox: list[int] | None) -> bytes:
+    """
+    Implements Option 2: 'Divide & Conquer' via Image Compounding.
+    Creates an image containing the full document + a high-res crop of the table area.
+    This gives the VLM 'Big Picture' context and 'Close-up' detail in a single token pass.
+    """
+    if not table_bbox or len(table_bbox) < 4:
+        return enhance_for_vlm(image_bytes)
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        
+        # 1. Enhance the full image
+        full_enhanced = _clahe_equalise(_safe_upscale(img))
+        
+        # 2. Extract and enhance the table crop
+        # Pad the bbox slightly for context
+        pad_w = int((table_bbox[2] - table_bbox[0]) * 0.05)
+        pad_h = int((table_bbox[3] - table_bbox[1]) * 0.05)
+        crop_box = (
+            max(0, table_bbox[0] - pad_w),
+            max(0, table_bbox[1] - pad_h),
+            min(w, table_bbox[2] + pad_w),
+            min(h, table_bbox[3] + pad_h)
+        )
+        table_crop = img.crop(crop_box)
+        table_enhanced = _clahe_equalise(_safe_upscale(table_crop))
+        
+        # 3. Build composite (Vertical stack)
+        # Resize full image to be smaller, keep crop large
+        full_small = full_enhanced.resize((800, int(800 * (h/w))), Image.Resampling.LANCZOS)
+        
+        # Calculate canvas size
+        canvas_w = max(full_small.width, table_enhanced.width)
+        canvas_h = full_small.height + table_enhanced.height + 20 # 20px gap
+        
+        canvas = Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255))
+        canvas.paste(full_small, (0, 0))
+        canvas.paste(table_enhanced, (0, full_small.height + 20))
+        
+        result = _to_bytes(canvas, JPEG_QUALITY)
+        logger.info("[enhancer] Composite VLM image ready (Option 2 applied). Size: %d bytes", len(result))
+        return result
+        
+    except Exception as e:
+        logger.warning("[enhancer] Composite image failed, fallback to standard: %s", e)
+        return enhance_for_vlm(image_bytes)

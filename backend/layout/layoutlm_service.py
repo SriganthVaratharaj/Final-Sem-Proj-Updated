@@ -56,6 +56,22 @@ def _load_local_layout_model() -> bool:
         return False
 
 
+def release_layoutlm_memory():
+    """Releases VRAM held by the local LayoutLMv3 Transformers model."""
+    global _LOCAL_LAYOUT_PROCESSOR, _LOCAL_LAYOUT_MODEL, _LOCAL_LAYOUT_INIT_ATTEMPTED
+    if _LOCAL_LAYOUT_MODEL is not None:
+        try:
+            import torch
+            del _LOCAL_LAYOUT_MODEL
+            del _LOCAL_LAYOUT_PROCESSOR
+            _LOCAL_LAYOUT_MODEL = None
+            _LOCAL_LAYOUT_PROCESSOR = None
+            _LOCAL_LAYOUT_INIT_ATTEMPTED = False
+            torch.cuda.empty_cache()
+            logger.info("[layoutlm] Local model VRAM released.")
+        except Exception as e:
+            logger.warning("[layoutlm] Failed to release memory: %s", e)
+
 def _build_layout_payload(image: Image.Image, words: list[str], boxes: list[list[int]], max_items: int, max_dim: int, quality: int) -> dict:
     img = image.copy()
     if max(img.size) > max_dim:
@@ -105,7 +121,6 @@ def _call_layoutlm_api(image: Image.Image, words: list[str], boxes: list[list[in
     Returns a list of 8 float values (CLS embedding preview) or [] on failure.
     """
     if not HF_TOKEN:
-        logger.info("[layoutlm] HF_TOKEN not set — skipping embedding call")
         return []
     if not words or not boxes:
         return []
@@ -457,13 +472,22 @@ def analyze_document_layout(
             "document_layout_analysis": _build_document_layout_analysis(image, entries, layoutlm_status),
         }
 
-    embedding_preview = _call_layoutlm_api(image, words, boxes)
-    source = "Hugging Face API"
+    # Try Local Transformers first (Prioritized per user request for 100% local GPU execution)
+    embedding_preview = []
+    source = "Local Transformers"
+    
+    if LAYOUTLM_ENABLE_LOCAL_FALLBACK:
+        logger.info("[layoutlm] Attempting local transformers execution...")
+        embedding_preview = _call_layoutlm_local_transformers(image, words, boxes)
+        
     if not embedding_preview:
-        local_preview = _call_layoutlm_local_transformers(image, words, boxes)
-        if local_preview:
-            embedding_preview = local_preview
-            source = "Local Transformers"
+        if HF_TOKEN:
+            logger.info("[layoutlm] Local failed or disabled. Falling back to HF API...")
+            embedding_preview = _call_layoutlm_api(image, words, boxes)
+            source = "Hugging Face API"
+        else:
+            logger.info("[layoutlm] Local failed and HF_TOKEN missing. Skipping embedding step.")
+            source = "Skipped"
 
     executed = bool(embedding_preview)
 

@@ -65,10 +65,11 @@ export default function ExportsTab({ result }) {
     <div className="space-y-5">
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Download Exports</h3>
-        <div className="grid sm:grid-cols-3 gap-2">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <DownloadBtn href={result.excel_file_url} label="Excel (.xlsx)" />
           <DownloadBtn href={result.json_output_url} label="JSON Data" />
-          <DownloadBtn href={result.text_report_url} label="TXT Report" />
+          <DownloadBtn href={result.digital_twin_txt_url} label="Digital Twin (.txt)" />
+          <DownloadBtn href={result.digital_twin_docx_url} label="Digital Twin (.docx)" />
         </div>
       </div>
 

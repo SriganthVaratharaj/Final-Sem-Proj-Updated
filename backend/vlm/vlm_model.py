@@ -27,7 +27,11 @@ Include:
 
 {ocr_context}
 
-Output the extracted details clearly line by line. DO NOT output JSON. Just give me the full structured text.
+Output the extracted details as a highly structured Markdown document. 
+CRITICAL: You must visually recreate the original invoice layout as closely as possible.
+- Use Markdown tables (`| Column A | Column B |`) to represent items, quantities, and prices exactly as they appear in boxes/tables.
+- Use headers, bold text, and blockquotes to represent the structure (Vendor at top, totals at bottom).
+- DO NOT output JSON. Just give me the full structured Markdown text (Digital Twin).
 """
 
 # Unicode ranges for scripts VLM cannot reliably read
@@ -227,12 +231,11 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
             if is_cross_script:
                 logger.warning(
                     "[vlm] Cross-script contamination detected (%d script families: %s). "
-                    "Discarding OCR hint — VLM will read image directly.",
+                    "Passing to VLM anyway since it needs all the help it can get.",
                     n_families, detected_langs_in_hint
                 )
-                ocr_context = "[NOTICE: OCR detected multiple conflicting scripts (likely artistic/custom font). READ DIRECTLY FROM IMAGE, ignore OCR.]"
-                # Also clear hint so alphabet injection uses visual cues only
-                ocr_hint = ""
+                # DO NOT discard the hint. The new VLM prompt can handle noisy hints better.
+                ocr_context = f"[OCR HINT - VERIFY AGAINST IMAGE (May contain noise)]\n{ocr_hint}\n[/OCR HINT]"
             elif is_latin_junk:
                 ocr_context = "[NOTICE: Script detection uncertain. READ DIRECTLY FROM IMAGE.]"
             else:
@@ -250,23 +253,27 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
         parsed = _clean_output(res)
 
         if not parsed:
-            return {"fields": {"Raw Output": res[:300]}, "is_invoice": False, "_source": "llava_parsing_failed"}
+            # If parsing failed entirely, return the raw first 300 chars for visibility
+            return {
+                "fields": {"Raw Output": res[:300] if res else "No response from model"}, 
+                "is_invoice": False, 
+                "_source": "llava_parsing_failed"
+            }
 
         # Strip hallucinated repeated values (e.g. "33 33 33 33...")
         cleaned_fields = _postprocess_fields(parsed)
 
         # EMPTY OUTPUT RECOVERY: If VLM returned empty (hallucination stripped or blank),
         # retry once with NO OCR hint — pure image-only read.
-        # This handles artistic fonts where a bad OCR hint confuses the VLM.
         full_text = cleaned_fields.get("full_extraction", "")
         all_empty = all(not v for v in cleaned_fields.values() if isinstance(v, str))
+        
         if (not full_text or all_empty) and ocr_hint:
             logger.warning("[vlm] Empty extraction detected. Retrying without OCR hint (pure image read)...")
-            retry_prompt = ALL_IN_ONE_PROMPT_TEMPLATE.format(
-                ocr_context="[READ DIRECTLY FROM IMAGE. Extract all visible text as-is.]",
+            retry_prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}\n" + ALL_IN_ONE_PROMPT_TEMPLATE.format(
+                ocr_context="[READ DIRECTLY FROM IMAGE. Ignore previous hints. Extract all visible text.]",
                 reference_alphabets=""
             )
-            retry_prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}\n" + retry_prompt
             retry_res = query_local_llava(image_bytes, retry_prompt, api_key=INTERNAL_MODEL_API_KEY)
             retry_parsed = _clean_output(retry_res)
             if retry_parsed:
@@ -277,6 +284,10 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
                     "is_invoice": True,
                     "_source": "image_only_fallback"
                 }
+
+        # If still empty after all retries, preserve the raw result for debugging
+        if not cleaned_fields.get("full_extraction") and res:
+             cleaned_fields["debug_raw_vlm"] = res[:500]
 
         return {
             "fields": cleaned_fields,
