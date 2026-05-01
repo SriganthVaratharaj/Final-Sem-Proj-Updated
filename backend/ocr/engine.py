@@ -21,10 +21,8 @@ def _fix_dll_paths():
 
 _fix_dll_paths()
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-# Force Paddle to CPU to avoid CUDA registration conflict with Torch (VLM)
-os.environ['FLAGS_selected_gpus'] = ''
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+# Paddle is now isolated via subprocess, so we don't need to force CPU mode 
+# globally. Doing so would break the VLM subprocess which inherits os.environ.
 
 import logging
 import shutil
