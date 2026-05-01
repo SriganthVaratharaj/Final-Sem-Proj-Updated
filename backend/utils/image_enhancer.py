@@ -195,46 +195,68 @@ def _to_bytes(img: Image.Image, quality: int) -> bytes:
 
 # ── PUBLIC API ────────────────────────────────────────────────────────────────
 
+def split_dual_invoice(image_bytes: bytes) -> list[bytes]:
+    """Detects if an image is a dual side-by-side invoice and returns a list of segments."""
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        # Wide image = likely dual
+        if w > h * 1.1:
+            logger.info("[enhancer] Wide image detected. Splitting into Left and Right segments.")
+            left = img.crop((0, 0, int(w * 0.5), h))
+            right = img.crop((int(w * 0.5), 0, w, h))
+            return [_to_bytes(left, JPEG_QUALITY), _to_bytes(right, JPEG_QUALITY)]
+        return [image_bytes]
+    except Exception as e:
+        logger.error("[enhancer] Dual split failed: %s", e)
+        return [image_bytes]
+
 def enhance_for_vlm(image_bytes: bytes) -> bytes:
     """
     Color-preserving enhancement for VLM.
-    VLM needs color (red amounts, green labels, table borders) intact.
-    MITIGATION for Disadvantage #2.
-    Pipeline: upscale → deskew → CLAHE → conservative sharpen
+    (Note: Splitting is now handled by pipeline via split_dual_invoice)
     """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = _safe_upscale(img)
-        img = _try_deskew(img)
         img = _clahe_equalise(img)
+        
+        # Boost contrast for stylized fonts
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.6)
+        
         img = _conservative_sharpen(img)
-        result = _to_bytes(img, JPEG_QUALITY)
-        logger.info("[enhancer] VLM variant ready. Size: %d → %d bytes", len(image_bytes), len(result))
-        return result
+        return _to_bytes(img, JPEG_QUALITY)
     except Exception as e:
-        logger.warning("[enhancer] VLM enhance failed, using original: %s", e)
+        logger.warning("[enhancer] VLM enhance failed: %s", e)
         return image_bytes
 
+def _thin_characters(img: Image.Image) -> Image.Image:
+    """Uses morphological erosion to thin thick fancy characters for better OCR."""
+    import numpy as np
+    import cv2
+    arr = np.array(img.convert("L"))
+    inv = cv2.bitwise_not(arr)
+    kernel = np.ones((2,2), np.uint8)
+    thinned = cv2.erode(inv, kernel, iterations=1)
+    result = cv2.bitwise_not(thinned)
+    return Image.fromarray(result)
 
 def enhance_for_ocr(image_bytes: bytes) -> bytes:
     """
-    High-contrast B&W variant for OCR text hint extraction.
-    Aggressive processing acceptable since OCR only needs text, not layout/color.
-    Pipeline: upscale → deskew → denoise → CLAHE → adaptive B&W → sharpen
+    Aggressive B&W + Thinning for stylized fancy fonts.
     """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = _safe_upscale(img)
-        img = _try_deskew(img)
         img = _denoise(img)
         img = _clahe_equalise(img)
         img = _adaptive_threshold_bw(img)
+        img = _thin_characters(img)
         img = _conservative_sharpen(img)
-        result = _to_bytes(img, OCR_JPEG_Q)
-        logger.info("[enhancer] OCR variant ready. Size: %d → %d bytes", len(image_bytes), len(result))
-        return result
+        return _to_bytes(img, OCR_JPEG_Q)
     except Exception as e:
-        logger.warning("[enhancer] OCR enhance failed, using original: %s", e)
+        logger.warning("[enhancer] OCR enhance failed: %s", e)
         return image_bytes
 
 
@@ -276,8 +298,13 @@ def create_composite_vlm_image(image_bytes: bytes, table_bbox: list[int] | None)
         table_enhanced = _clahe_equalise(_safe_upscale(table_crop))
         
         # 3. Build composite (Vertical stack)
-        # Resize full image to be smaller, keep crop large
-        full_small = full_enhanced.resize((800, int(800 * (h/w))), Image.Resampling.LANCZOS)
+        # Resize full image to be even smaller to save VRAM
+        full_small = full_enhanced.resize((640, int(640 * (h/w))), Image.Resampling.LANCZOS)
+        
+        # Scale down table crop if it's huge
+        if table_enhanced.width > 800:
+            scale_crop = 800 / table_enhanced.width
+            table_enhanced = table_enhanced.resize((800, int(table_enhanced.height * scale_crop)), Image.Resampling.LANCZOS)
         
         # Calculate canvas size
         canvas_w = max(full_small.width, table_enhanced.width)
@@ -287,8 +314,8 @@ def create_composite_vlm_image(image_bytes: bytes, table_bbox: list[int] | None)
         canvas.paste(full_small, (0, 0))
         canvas.paste(table_enhanced, (0, full_small.height + 20))
         
-        result = _to_bytes(canvas, JPEG_QUALITY)
-        logger.info("[enhancer] Composite VLM image ready (Option 2 applied). Size: %d bytes", len(result))
+        result = _to_bytes(canvas, 80) # Lower quality to save memory
+        logger.info("[enhancer] Compact Composite VLM image ready. Size: %d bytes", len(result))
         return result
         
     except Exception as e:

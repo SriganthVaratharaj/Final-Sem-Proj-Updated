@@ -5,7 +5,26 @@ Supports Indic script-aware OCR with dominant-language enforcement.
 Source: ocr-invoice-system/src/ocr_engine.py
 """
 import os
+import sys
+from pathlib import Path
+
+# ── Windows DLL Fix ──────────────────────────────────────────────────────────
+def _fix_dll_paths():
+    if sys.platform == "win32":
+        try:
+            import torch
+            torch_lib = Path(torch.__file__).parent / "lib"
+            if torch_lib.exists():
+                os.add_dll_directory(str(torch_lib))
+        except Exception:
+            pass
+
+_fix_dll_paths()
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+# Force Paddle to CPU to avoid CUDA registration conflict with Torch (VLM)
+os.environ['FLAGS_selected_gpus'] = ''
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 import logging
 import shutil
@@ -14,11 +33,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
+import cv2
+import json
+import subprocess
+import tempfile
 
 from backend.config import OCR_FORCE_DOMINANT_LANGUAGE, PADDLE_AUTO_LANGUAGES, INTERNAL_MODEL_API_KEY
 from backend.vlm.gguf_engine import query_local_paddle_vl
 
 logging.getLogger("ppocr").setLevel(logging.ERROR)
+
+# PaddleOCR is now handled via subprocess to avoid pybind11 registration conflicts on Windows.
+PADDLE_AVAILABLE = True 
+
+def _get_paddleocr_class():
+    return None # Not used in main process anymore
 
 logger = logging.getLogger(__name__)
 
@@ -168,14 +197,17 @@ def _get_model(lang):
 
 
 def _init_model(lang):
-    from paddleocr import PaddleOCR
+    OCRClass = _get_paddleocr_class()
+    if not OCRClass:
+        raise ImportError("PaddleOCR not available")
     try:
-        return PaddleOCR(lang=lang, use_gpu=False, use_angle_cls=True, use_space_char=True, show_log=False, enable_mkldnn=True)
-    except (tarfile.ReadError, EOFError):
+        return OCRClass(lang=lang, use_gpu=False, use_angle_cls=True, use_space_char=True, show_log=False, enable_mkldnn=True)
+    except Exception:
+        # Retry with cache cleanup
         cache = Path.home() / ".paddleocr" / "whl" / "rec" / lang
         if cache.exists():
             shutil.rmtree(cache, ignore_errors=True)
-        return PaddleOCR(lang=lang, use_gpu=False, use_angle_cls=True, use_space_char=True, show_log=False, enable_mkldnn=True)
+        return OCRClass(lang=lang, use_gpu=False, use_angle_cls=True, use_space_char=True, show_log=False, enable_mkldnn=True)
 
 
 def _load_models():
@@ -499,10 +531,25 @@ def run_ocr(image, lang=None, image_bytes: bytes = None, filename: str = ""):
     """
     if lang is not None:
         try:
-            ocr = _get_model(lang)
             selected_lang = _normalize_lang(lang)
-            selected_image = _image_variant_for_lang(image, selected_lang)
-            texts, boxes, confidences = _flatten_result(ocr.ocr(selected_image, cls=False))
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                tmp_path = tmp.name
+                cv2.imwrite(tmp_path, _image_variant_for_lang(image, selected_lang))
+                
+            sub_script = Path(__file__).parent / "paddle_subprocess.py"
+            cmd = [sys.executable, str(sub_script), tmp_path, selected_lang]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            os.unlink(tmp_path)
+            
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                if "error" in data:
+                    raise Exception(data["error"])
+                texts, boxes, confidences = data["texts"], data["boxes"], data["confidences"]
+            else:
+                raise Exception("Subprocess crashed")
+                
             texts, boxes, confidences = _sort_by_reading_order(texts, boxes, confidences)
             is_bengali = any(_has_bengali(t) for t in texts)
             return texts, boxes, confidences, {
@@ -520,14 +567,25 @@ def run_ocr(image, lang=None, image_bytes: bytes = None, filename: str = ""):
 
     auto_langs = ACTIVE_AUTO_LANGUAGES or ['latin']
 
-    # Auto mode: detect once, recognise in parallel
-    from paddleocr.tools.infer.utility import get_rotate_crop_image
-
+    # Auto mode: detect once via subprocess
     try:
-        main_ocr = _get_model('latin')
-        base_image = _image_variant_for_lang(image, 'default')
-        det_res = main_ocr.ocr(base_image, cls=False, rec=False)
-        boxes = det_res[0] if det_res and det_res[0] else []
+        # Save image for subprocess
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            tmp_path = tmp.name
+            cv2.imwrite(tmp_path, _image_variant_for_lang(image, 'default'))
+            
+        sub_script = Path(__file__).parent / "paddle_subprocess.py"
+        cmd = [sys.executable, str(sub_script), tmp_path, 'latin']
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        os.unlink(tmp_path)
+        
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            boxes = data.get("boxes", [])
+        else:
+            boxes = []
+            
     except Exception as det_exc:
         logger.warning("[ocr] PaddleOCR detection failed: %s. Trying GGUF fallback...", det_exc)
         if image_bytes:
@@ -546,24 +604,36 @@ def run_ocr(image, lang=None, image_bytes: bytes = None, filename: str = ""):
     results = {}
 
     def process_candidate(candidate):
+        """Run PaddleOCR in a separate subprocess to avoid DLL/Registry conflicts."""
         try:
-            cand_image = _image_variant_for_lang(image, candidate)
-            crops = [get_rotate_crop_image(cand_image, np.array(box, dtype=np.float32)) for box in boxes]
-            ocr = _get_model(candidate)
-            rec_res = ocr.ocr(crops, det=False, cls=False)
-            texts, confidences = [], []
-            if rec_res and rec_res[0]:
-                for item in rec_res[0]:
-                    texts.append(item[0] if isinstance(item, (list, tuple)) else "")
-                    confidences.append(float(item[1]) if isinstance(item, (list, tuple)) else 0.0)
+            import subprocess
+            import tempfile
+            
+            # Save segment to temp file for subprocess
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                tmp_path = tmp.name
+                cv2.imwrite(tmp_path, _image_variant_for_lang(image, candidate))
+            
+            sub_script = Path(__file__).parent / "paddle_subprocess.py"
+            cmd = [sys.executable, str(sub_script), tmp_path, candidate]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            os.unlink(tmp_path)
+            
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                if "error" in data:
+                    logger.warning("[ocr] Subprocess error for %s: %s", candidate, data["error"])
+                    return candidate, None
+                return candidate, (data["texts"], data["boxes"], data["confidences"])
             else:
-                texts = [""] * len(boxes)
-                confidences = [0.0] * len(boxes)
-            return candidate, (texts, list(boxes), confidences)
-        except Exception:
+                logger.warning("[ocr] Subprocess crashed for %s: %s", candidate, result.stderr)
+                return candidate, None
+        except Exception as e:
+            logger.error("[ocr] Subprocess invocation failed: %s", e)
             return candidate, None
 
-    with ThreadPoolExecutor(max_workers=min(len(auto_langs), os.cpu_count() or 4)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(auto_langs), 4)) as executor:
         futures = {executor.submit(process_candidate, c): c for c in auto_langs}
         for future in as_completed(futures):
             candidate, res = future.result()

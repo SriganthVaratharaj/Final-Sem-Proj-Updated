@@ -105,6 +105,6 @@ PADDLE_VL_MMPROJ_PATH = PADDLE_VL_LOCAL_DIR / "PaddleOCR-VL-1.5-mmproj.gguf"
 # ── image preprocessing constants ─────────────────────────────────────────────
 IMAGE_SIZE = (1000, 1000)   # used by layoutlm_service normalisation
 
-VLM_LOCAL_N_CTX = 8192   # Fits 4GB VRAM: image tokens + prompt + response + alphabets
-VLM_LOCAL_MAX_NEW_TOKENS = 512   # Increased for full A to Z extraction
+VLM_LOCAL_N_CTX = 4096      # Fits 4GB VRAM with composite images (image tokens + prompt + response)
+VLM_LOCAL_MAX_NEW_TOKENS = 800  # Increased for full Digital Twin extraction
 

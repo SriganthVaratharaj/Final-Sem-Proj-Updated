@@ -138,24 +138,31 @@ def run_easyocr(image_bytes: bytes, paddle_lang: str = 'latin') -> tuple:
         return [], [], [], {"mode": "easyocr_error", "error": str(e)}
 
 
-def run_easyocr_all_indic(image_bytes: bytes) -> tuple:
+def run_easyocr_all_indic(image_bytes: bytes, priority_lang: str = None) -> tuple:
     """
-    Run EasyOCR across all supported Indic scripts.
-    EasyOCR cannot mix most Indic scripts in one reader, so we run each separately
-    and merge the unique results.
-    Returns: (texts, boxes, confidences, metadata)
+    Run EasyOCR across all supported Indic scripts with dynamic priority.
     """
     if not is_easyocr_available():
         return [], [], [], {"mode": "easyocr_unavailable"}
 
-    # Each Indic script must run with its own reader (+ English)
-    SCRIPT_GROUPS = [
-        ['en', 'hi'],   # Hindi/Devanagari
-        ['ta', 'en'],   # Tamil
-        ['te', 'en'],   # Telugu
-        ['kn', 'en'],   # Kannada
-        ['bn', 'en'],   # Bengali
-    ]
+    # Base script groups
+    groups = {
+        'hi': ['en', 'hi'],
+        'ta': ['ta', 'en'],
+        'te': ['te', 'en'],
+        'kn': ['kn', 'en'],
+        'bn': ['bn', 'en'],
+    }
+
+    # Order groups: priority first, then the rest
+    script_groups = []
+    if priority_lang in groups:
+        script_groups.append(groups[priority_lang])
+        logger.info("[easyocr] Prioritizing script group: %s", priority_lang)
+    
+    for lang, group in groups.items():
+        if lang != priority_lang:
+            script_groups.append(group)
 
     all_texts, all_boxes, all_confs = [], [], []
     seen = set()
@@ -167,7 +174,7 @@ def run_easyocr_all_indic(image_bytes: bytes) -> tuple:
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         img = _resize_for_easyocr(img)
 
-        for lang_group in SCRIPT_GROUPS:
+        for lang_group in script_groups:
             try:
                 reader = _get_reader(lang_group)
                 results = reader.readtext(img, detail=1, paragraph=False)
@@ -187,7 +194,7 @@ def run_easyocr_all_indic(image_bytes: bytes) -> tuple:
 
         return all_texts, all_boxes, all_confs, {
             "mode": "easyocr_all_indic",
-            "scripts_tried": len(SCRIPT_GROUPS),
+            "scripts_tried": len(script_groups),
             "avg_confidence": round(avg_conf, 3),
         }
 
