@@ -48,9 +48,10 @@ def _load_gguf_model(model_type="qwen"):
     """Starts the standalone GPU CUDA server and returns an API client."""
     global _llama_process, _llama_client
 
+    from backend.config import HF_MODELS_DIR
     if model_type == "minicpm":
-        model_path = Path("hf_models/ggml-model-Q2_K.gguf")
-        mmproj_path = Path("hf_models/mmproj-model-f16.gguf")
+        model_path = HF_MODELS_DIR / "ggml-model-Q2_K.gguf"
+        mmproj_path = HF_MODELS_DIR / "mmproj-model-f16.gguf"
         # Ensure context is large enough for MiniCPM
         ctx_size = VLM_LOCAL_N_CTX
     else:
