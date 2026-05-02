@@ -211,16 +211,17 @@ def split_dual_invoice(image_bytes: bytes) -> list[bytes]:
         logger.error("[enhancer] Dual split failed: %s", e)
         return [image_bytes]
 
-def _boost_white_on_color_text(img: Image.Image) -> Image.Image:
+def _invert_colored_bands(img: Image.Image) -> Image.Image:
     """
-    Detect colored background bands (headers/footers like teal, green, blue)
-    where white text sits on dark bg. Boost local contrast so VLM can read them.
+    [POINT 2 - Color Inversion Logic]
+    Detect colored background bands (teal/green/blue headers like 'विथूल बिल')
+    and INVERT those bands so white text → black text on white background.
 
-    Strategy:
-    - Scan image in horizontal strips (5% height each)
-    - If a strip's average saturation is HIGH and brightness is LOW → colored bg
-    - For those strips: apply aggressive contrast boost + slight brightening
-    - White-on-dark text becomes clearly readable without destroying rest of image
+    This is fundamentally better than contrast boost:
+    - Contrast boost: white-on-dark stays white-on-dark (hard for model)
+    - Inversion: white-on-dark becomes black-on-white (trivial for any model)
+
+    Only inverts colored regions (S > 60, V < 160), leaves white bg areas alone.
     """
     try:
         import cv2
@@ -230,46 +231,92 @@ def _boost_white_on_color_text(img: Image.Image) -> Image.Image:
         result = arr.copy()
 
         strip_h = max(10, h // 20)  # 5% height strips
+        colored_bands_found = 0
 
         for y in range(0, h, strip_h):
-            strip = hsv[y:y + strip_h]
-            # High saturation (S > 60) + low-mid value (V < 160) = colored dark background
-            avg_s = float(strip[:, :, 1].mean())
-            avg_v = float(strip[:, :, 2].mean())
+            strip_hsv = hsv[y:y + strip_h]
+            avg_s = float(strip_hsv[:, :, 1].mean())
+            avg_v = float(strip_hsv[:, :, 2].mean())
 
+            # High saturation + low-mid brightness = colored (dark) background
             if avg_s > 60 and avg_v < 160:
-                # This is a colored band — apply local contrast boost
-                band = arr[y:y + strip_h].astype(np.float32)
-                # Stretch contrast: pull whites up, push mids down
-                band = np.clip((band - 80) * 2.2, 0, 255).astype(np.uint8)
-                result[y:y + strip_h] = band
+                # TRUE INVERSION: white text → black, colored bg → light
+                band = arr[y:y + strip_h]
+                result[y:y + strip_h] = 255 - band
+                colored_bands_found += 1
 
-        logger.debug("[enhancer] Colored bg boost applied.")
+        if colored_bands_found > 0:
+            logger.debug("[enhancer] Inverted %d colored band(s) for VLM readability.", colored_bands_found)
         return Image.fromarray(result)
     except Exception as e:
-        logger.debug("[enhancer] Colored bg boost skipped: %s", e)
+        logger.debug("[enhancer] Color inversion skipped: %s", e)
         return img
+
+
+def split_for_extraction(image_bytes: bytes) -> list[bytes]:
+    """
+    [POINT 1 - Divide & Conquer 2.0]
+    Split a large/tall image into meaningful segments for separate VLM passes.
+    Each segment is independently enhanced and returned.
+
+    Logic:
+    - Wide image (w > h*1.1)  → left half + right half (existing dual-invoice logic)
+    - Tall image (h > w*1.5)  → top 55% + bottom 55% (overlapping to avoid cut-off fields)
+    - Normal image             → [original] (no split needed)
+
+    The overlap on tall split (55%+55%) ensures fields near the midpoint aren't lost.
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+
+        if w > h * 1.1:
+            # Wide → side-by-side dual invoice
+            logger.info("[enhancer] D&C: Wide image → splitting Left/Right")
+            left  = img.crop((0, 0, w // 2, h))
+            right = img.crop((w // 2, 0, w, h))
+            return [
+                _to_bytes(enhance_for_vlm_pil(left),  JPEG_QUALITY),
+                _to_bytes(enhance_for_vlm_pil(right), JPEG_QUALITY),
+            ]
+        elif h > w * 1.5:
+            # Tall → top + bottom (with overlap)
+            mid_top    = int(h * 0.55)
+            mid_bottom = int(h * 0.45)
+            logger.info("[enhancer] D&C: Tall image → splitting Top/Bottom with overlap")
+            top    = img.crop((0, 0,           w, mid_top))
+            bottom = img.crop((0, mid_bottom,  w, h))
+            return [
+                _to_bytes(enhance_for_vlm_pil(top),    JPEG_QUALITY),
+                _to_bytes(enhance_for_vlm_pil(bottom), JPEG_QUALITY),
+            ]
+        else:
+            # Normal sized → no split, single segment
+            return [enhance_for_vlm(image_bytes)]
+    except Exception as e:
+        logger.warning("[enhancer] D&C split failed: %s", e)
+        return [image_bytes]
+
+
+def enhance_for_vlm_pil(img: Image.Image) -> Image.Image:
+    """Internal PIL-in PIL-out version for use by segment splitter."""
+    img = _safe_upscale(img)
+    img = _clahe_equalise(img)
+    img = _invert_colored_bands(img)   # Point 2: true inversion
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.6)
+    img = _conservative_sharpen(img)
+    return img
 
 
 def enhance_for_vlm(image_bytes: bytes) -> bytes:
     """
     Color-preserving enhancement for VLM.
-    (Note: Splitting is now handled by pipeline via split_dual_invoice)
+    Uses true band inversion (Point 2) instead of contrast boost.
     """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img = _safe_upscale(img)
-        img = _clahe_equalise(img)
-
-        # Boost white-on-colored-background text (teal/green headers, footer bands)
-        # This is the key fix for bills like "विथूल बिल" where title is white-on-teal
-        img = _boost_white_on_color_text(img)
-
-        # Global contrast boost for stylized fonts
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.6)
-
-        img = _conservative_sharpen(img)
+        img = enhance_for_vlm_pil(img)
         return _to_bytes(img, JPEG_QUALITY)
     except Exception as e:
         logger.warning("[enhancer] VLM enhance failed: %s", e)

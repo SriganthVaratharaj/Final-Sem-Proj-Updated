@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from backend.config import VLM_REQUIRED_FIELDS, INTERNAL_MODEL_API_KEY
 from backend.vlm.gguf_engine import query_local_llava
+from backend.utils.image_enhancer import split_for_extraction
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,55 @@ def _clean_output(text: str) -> dict | None:
         "is_comprehensive": True,
         "_source": "vlm_descriptive_list"
     }
+
+# ── POINT 3: Quick Language Scan Prompt ──────────────────────────────────────
+_LANG_SCAN_PROMPT = """
+Look at this image. What is the MAIN language/script of the text?
+Reply with ONLY one word from this list:
+english, hindi, bengali, tamil, telugu, kannada, gujarati, marathi, odia, malayalam, punjabi, urdu, mixed
+
+Do not explain. Do not add punctuation. Just one word.
+"""
+
+# Per-language prompt additions injected in the 2nd pass
+_LANG_SPECIFIC_RULES: dict[str, str] = {
+    "hindi":     "The text uses Devanagari script. Read matras (vowel marks) carefully.",
+    "marathi":   "The text uses Devanagari script. Read matras (vowel marks) carefully.",
+    "bengali":   "The text uses Bengali script. Watch for conjunct consonants.",
+    "tamil":     "The text uses Tamil script. Letters have circular curves.",
+    "telugu":    "The text uses Telugu script. Characters have rounded shapes.",
+    "kannada":   "The text uses Kannada script.",
+    "gujarati":  "The text uses Gujarati script. Similar to Devanagari but no top bar.",
+    "malayalam": "The text uses Malayalam script.",
+    "odia":      "The text uses Odia script.",
+    "punjabi":   "The text uses Gurmukhi script.",
+    "urdu":      "The text uses Urdu/Nastaliq script (right-to-left).",
+    "english":   "",
+    "mixed":     "The invoice contains multiple languages/scripts. Extract all visible text.",
+}
+
+
+def _quick_language_scan(image_bytes: bytes, model_type: str = "minicpm") -> str:
+    """
+    [POINT 3 - Prompt Feedback Loop Pass 1]
+    Lightweight VLM call to detect invoice language before the full extraction.
+    Returns a language key from _LANG_SPECIFIC_RULES, defaults to 'mixed' on failure.
+    """
+    try:
+        raw = query_local_llava(image_bytes, _LANG_SCAN_PROMPT.strip(), model_type=model_type)
+        if not raw:
+            return "mixed"
+        # Clean and normalize
+        lang = raw.strip().lower().split()[0] if raw.strip() else "mixed"
+        lang = re.sub(r'[^a-z]', '', lang)  # letters only
+        if lang not in _LANG_SPECIFIC_RULES:
+            lang = "mixed"
+        logger.info("[vlm] Language scan result: '%s'", lang)
+        return lang
+    except Exception as e:
+        logger.warning("[vlm] Language scan failed: %s", e)
+        return "mixed"
+
 
 def _strip_hallucinations(text: str) -> str:
     """
@@ -304,10 +354,45 @@ def _load_reference_alphabets(ocr_hint: str = "", image_langs: list = None, inje
 
 def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: str = "", filename: str = "") -> dict:
     try:
-        # Add image ID to the prompt to force context reset/isolation
         image_id = Path(filename).stem if filename else "current_invoice"
-        
-        # SMART OCR HINT TRUNCATION
+
+        # ── POINT 1: Divide & Conquer 2.0 ─────────────────────────────────────
+        # Split large/tall/dual images into segments, extract each, merge results.
+        segments = split_for_extraction(image_bytes)
+        if len(segments) > 1:
+            logger.info("[vlm] D&C: %d segments detected. Running per-segment extraction.", len(segments))
+            all_lines = []
+            for i, seg_bytes in enumerate(segments):
+                seg_result = _extract_single_segment(
+                    seg_bytes, ocr_hint=ocr_hint,
+                    filename=f"{image_id}_seg{i+1}"
+                )
+                seg_text = seg_result.get("fields", {}).get("full_extraction", "")
+                if seg_text:
+                    all_lines.append(f"--- SEGMENT {i+1} ---\n{seg_text}")
+            merged_text = "\n".join(all_lines)
+            return {
+                "fields": {
+                    "full_extraction": merged_text,
+                    "is_comprehensive": True,
+                    "_source": "divide_and_conquer"
+                },
+                "is_invoice": True,
+                "_source": "divide_and_conquer"
+            }
+
+        # Single segment — standard path
+        return _extract_single_segment(image_bytes, ocr_hint=ocr_hint, filename=filename)
+
+    except Exception as e:
+        logger.error(f"VLM Error: {e}")
+        return _failed_result()
+
+
+def _extract_single_segment(image_bytes: bytes, ocr_hint: str = "", filename: str = "") -> dict:
+    """Core extraction logic for a single image segment."""
+    try:
+        image_id = Path(filename).stem if filename else "invoice"
         # 4096 ctx = 2880 image tokens + ~400 prompt tokens → ~816 left for OCR hint
         # Keep first 40 lines (header/items) + last 20 lines (totals/tax), cap at 1800 chars
         if ocr_hint:
@@ -357,20 +442,41 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
 
         ref_alphabets = _load_reference_alphabets(
             ocr_hint=ocr_hint,
-            # Inject full confusion map ONLY when stylized font suspected (cross-script garbage).
-            # Clean OCR → compact alphabets only (saves ~200 tokens per request).
-            # English bills → nothing injected.
             inject_confusion_map=is_cross_script if ocr_hint else False
         )
 
-        prompt = ALL_IN_ONE_PROMPT_TEMPLATE.format(ocr_context=ocr_context, reference_alphabets=ref_alphabets)
-        # Force strict isolation by mentioning the image ID
-        prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}\n" + prompt
-        
-        # Decide which model to use
-        # If it's an English/Latin bill, use Qwen. If Indic script is detected, use the stronger MiniCPM model.
-        model_type = "minicpm" if has_indic else "qwen"
-        logger.info(f"[vlm] Using VLM Model Type: {model_type.upper()}")
+        # ── POINT 3: Prompt Feedback Loop ────────────────────────────────────
+        # Pass 1: Quick language scan (cheap single-word response).
+        # Pass 2: Full extraction with language-specific rule injected into prompt.
+        # Only run scan when no OCR hint (pure image case — we can't tell language otherwise).
+        if not ocr_hint or not has_indic:
+            # If no OCR hint, we don't know the language yet — run quick scan
+            scan_model = "minicpm"  # Always use vision model for scan
+            detected_lang = _quick_language_scan(image_bytes, model_type=scan_model)
+        else:
+            # OCR hint has Indic chars → detect from text (cheaper than another VLM call)
+            detected_langs = _detect_scripts(ocr_hint)
+            detected_lang = detected_langs[0] if detected_langs else "mixed"
+
+        lang_rule = _LANG_SPECIFIC_RULES.get(detected_lang, "")
+        if lang_rule:
+            lang_rule_injection = f"\n[LANGUAGE CONTEXT]: {lang_rule}\n"
+        else:
+            lang_rule_injection = ""
+
+        prompt = ALL_IN_ONE_PROMPT_TEMPLATE.format(
+            ocr_context=ocr_context,
+            reference_alphabets=ref_alphabets
+        )
+        # Inject language-specific rule right after the task header (max 1 sentence, ~20 tokens)
+        prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}{lang_rule_injection}\n" + prompt
+
+        # Decide model: language scan overrides the has_indic heuristic for accuracy
+        if detected_lang == "english":
+            model_type = "qwen"
+        else:
+            model_type = "minicpm"
+        logger.info("[vlm] Pass 2 extraction | lang=%s | model=%s", detected_lang, model_type)
 
         res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY, model_type=model_type)
         parsed = _clean_output(res)
