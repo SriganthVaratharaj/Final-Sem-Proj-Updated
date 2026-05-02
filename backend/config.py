@@ -97,14 +97,19 @@ VLM_LOCAL_MODEL_ID: str = os.getenv(
 VLM_LOCAL_MAX_NEW_TOKENS: int = int(os.getenv("VLM_LOCAL_MAX_NEW_TOKENS", "256"))
 
 # ── GGUF Paths ────────────────────────────────────────────────────────────────
+# English/Latin invoices → Qwen3 VL 4B Q4_K_M (fast, accurate for Latin scripts)
 LLAVA_GGUF_PATH = HF_MODELS_DIR / "Qwen3VL-4B-Instruct-Q4_K_M.gguf"
 LLAVA_MMPROJ_PATH = HF_MODELS_DIR / "mmproj-Qwen3VL-4B-Instruct-F16.gguf"
+
+# Indic language invoices → MiniCPM-V 2.6 Q4_K_M (multilingual, stronger for Indian scripts)
+MINICPM_GGUF_PATH = HF_MODELS_DIR / "MiniCPM-V-2_6-Q4_K_M.gguf"
+MINICPM_MMPROJ_PATH = HF_MODELS_DIR / "mmproj-MiniCPM-V-2_6-f16.gguf"
+
 PADDLE_VL_GGUF_PATH = PADDLE_VL_LOCAL_DIR / "PaddleOCR-VL-1.5.gguf"
 PADDLE_VL_MMPROJ_PATH = PADDLE_VL_LOCAL_DIR / "PaddleOCR-VL-1.5-mmproj.gguf"
 
 # ── image preprocessing constants ─────────────────────────────────────────────
 IMAGE_SIZE = (1000, 1000)   # used by layoutlm_service normalisation
 
-VLM_LOCAL_N_CTX = 4096      # Needs ~3000 tokens (image + alphabets + prompt)
-VLM_LOCAL_MAX_NEW_TOKENS = 512   # Enough for full invoice output
-
+VLM_LOCAL_N_CTX = 8192           # Increased for Q4_K_M — more room for image + prompt
+VLM_LOCAL_MAX_NEW_TOKENS = 1024  # Full invoice output fits comfortably
