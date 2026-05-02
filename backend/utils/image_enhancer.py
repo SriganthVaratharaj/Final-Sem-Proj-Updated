@@ -211,6 +211,46 @@ def split_dual_invoice(image_bytes: bytes) -> list[bytes]:
         logger.error("[enhancer] Dual split failed: %s", e)
         return [image_bytes]
 
+def _boost_white_on_color_text(img: Image.Image) -> Image.Image:
+    """
+    Detect colored background bands (headers/footers like teal, green, blue)
+    where white text sits on dark bg. Boost local contrast so VLM can read them.
+
+    Strategy:
+    - Scan image in horizontal strips (5% height each)
+    - If a strip's average saturation is HIGH and brightness is LOW → colored bg
+    - For those strips: apply aggressive contrast boost + slight brightening
+    - White-on-dark text becomes clearly readable without destroying rest of image
+    """
+    try:
+        import cv2
+        arr = np.array(img)
+        hsv = cv2.cvtColor(arr, cv2.COLOR_RGB2HSV)
+        h, w = arr.shape[:2]
+        result = arr.copy()
+
+        strip_h = max(10, h // 20)  # 5% height strips
+
+        for y in range(0, h, strip_h):
+            strip = hsv[y:y + strip_h]
+            # High saturation (S > 60) + low-mid value (V < 160) = colored dark background
+            avg_s = float(strip[:, :, 1].mean())
+            avg_v = float(strip[:, :, 2].mean())
+
+            if avg_s > 60 and avg_v < 160:
+                # This is a colored band — apply local contrast boost
+                band = arr[y:y + strip_h].astype(np.float32)
+                # Stretch contrast: pull whites up, push mids down
+                band = np.clip((band - 80) * 2.2, 0, 255).astype(np.uint8)
+                result[y:y + strip_h] = band
+
+        logger.debug("[enhancer] Colored bg boost applied.")
+        return Image.fromarray(result)
+    except Exception as e:
+        logger.debug("[enhancer] Colored bg boost skipped: %s", e)
+        return img
+
+
 def enhance_for_vlm(image_bytes: bytes) -> bytes:
     """
     Color-preserving enhancement for VLM.
@@ -220,16 +260,21 @@ def enhance_for_vlm(image_bytes: bytes) -> bytes:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img = _safe_upscale(img)
         img = _clahe_equalise(img)
-        
-        # Boost contrast for stylized fonts
+
+        # Boost white-on-colored-background text (teal/green headers, footer bands)
+        # This is the key fix for bills like "विथूल बिल" where title is white-on-teal
+        img = _boost_white_on_color_text(img)
+
+        # Global contrast boost for stylized fonts
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(1.6)
-        
+
         img = _conservative_sharpen(img)
         return _to_bytes(img, JPEG_QUALITY)
     except Exception as e:
         logger.warning("[enhancer] VLM enhance failed: %s", e)
         return image_bytes
+
 
 def _thin_characters(img: Image.Image) -> Image.Image:
     """Uses morphological erosion to thin thick fancy characters for better OCR."""
