@@ -50,8 +50,8 @@ def _load_gguf_model(model_type="qwen"):
 
     from backend.config import HF_MODELS_DIR
     if model_type == "minicpm":
-        model_path = HF_MODELS_DIR / "ggml-model-Q2_K.gguf"
-        mmproj_path = HF_MODELS_DIR / "mmproj-model-f16.gguf"
+        model_path = HF_MODELS_DIR / "MiniCPM-V-2_6-IQ2_M.gguf"
+        mmproj_path = HF_MODELS_DIR / "mmproj-MiniCPM-V-2_6-f16.gguf"
         # Ensure context is large enough for MiniCPM
         ctx_size = VLM_LOCAL_N_CTX
     else:
@@ -85,6 +85,7 @@ def _load_gguf_model(model_type="qwen"):
         "-c", str(ctx_size),
         "-ngl", "99",
         "--port", str(port),
+        "-t", "8",   # Use 8 CPU threads for layers that spill to system RAM
         "-cb"  # continuous batching
     ]
     
