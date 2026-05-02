@@ -12,45 +12,35 @@ from backend.vlm.gguf_engine import query_local_llava
 logger = logging.getLogger(__name__)
 
 ALL_IN_ONE_PROMPT_TEMPLATE = """
-You are a multilingual invoice data extractor. Extract ALL information from this invoice image.
+You are an invoice OCR engine. Your ONLY job is to read every piece of text visible in this image, from TOP to BOTTOM, LEFT to RIGHT.
 
 The invoice may be in English, Hindi, Bengali, Tamil, Telugu, Kannada, Gujarati, or a mix.
-Extract text EXACTLY as it appears. Do NOT translate. Do NOT guess.
 
 {reference_alphabets}
 
 {ocr_context}
 
-OUTPUT FORMAT: Structured Markdown. No JSON.
+CRITICAL RULES:
+1. Read EVERY line you can see in the image, in the order it appears top-to-bottom.
+2. Do NOT skip any line — even if you don't understand the label.
+3. Copy each label AND its value EXACTLY as seen. Do NOT translate.
+4. For numbers (IDs, amounts, dates): copy digit-by-digit. Do NOT guess or truncate.
+5. If text is white on a dark/colored background, look carefully — it is still readable.
+6. Do NOT repeat any line.
+7. If you cannot read a specific word clearly, write [unclear] for that word only.
 
-STRICT RULES — READ CAREFULLY:
-1. Each piece of text must appear EXACTLY ONCE in the output. Do NOT repeat it.
-2. If text appears INSIDE a table/box in the image → put it ONLY in the Items Table section.
-3. If text appears in the HEADER area → put it ONLY in the Header section.
-4. Do NOT copy table cell contents into the Header or Bill Info sections.
-5. If a table row is EMPTY in the image, write empty cells: `| | | | |`
-6. If a table row has data, each DIFFERENT row must have DIFFERENT content. Do NOT repeat the same row multiple times.
-7. If you cannot clearly read a field, write N/A. Do NOT guess or hallucinate.
-8. Numbers, prices, and codes: copy digit-by-digit exactly as seen.
+OUTPUT FORMAT — one line per visible text row:
+```
+LINE 1: <exact text of first line>
+LINE 2: <exact text of second line>
+LINE 3: <exact text of third line>
+...
+```
 
-Extract in this order:
-## Header
-- Vendor/Shop Name:
-- Address:
-- Phone / GSTIN / Tax ID:
-
-## Bill Info  
-- Bill No:
-- Date:
-- Total Amount:
-
-## Items Table
-| Sr | Item Name | Qty | Unit Price | Total |
-|---|---|---|---|---|
-(one row per item — only real items visible in image)
-
-## Other Details
-(any remaining text not captured above)
+Also, at the end, output a separate TOTALS section:
+```
+TOTAL AMOUNT: <value>
+```
 """
 
 # Unicode ranges for scripts VLM cannot reliably read

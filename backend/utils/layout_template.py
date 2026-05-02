@@ -49,15 +49,15 @@ logger = logging.getLogger(__name__)
 # Each entry: (canonical_field_name, zone, aliases_to_search_in_raw_extraction)
 INVOICE_TEMPLATE: list[tuple[str, str, list[str]]] = [
     # ── VENDOR / SELLER (Top-Left) ────────────────────────────────────────────
-    ("vendor_name",        "top_left",     ["vendor", "seller", "from", "company", "firm", "shop", "store", "biller", "issued_by", "supplier"]),
-    ("vendor_address",     "top_left",     ["vendor_address", "seller_address", "address", "from_address", "office_address"]),
-    ("vendor_gstin",       "top_left",     ["gstin", "gst", "gst_number", "gstin_number", "vendor_gstin", "seller_gstin", "tax_id"]),
-    ("vendor_phone",       "top_left",     ["phone", "mobile", "contact", "tel", "telephone", "vendor_phone"]),
+    ("vendor_name",        "top_left",     ["vendor/shop name", "vendor", "seller", "from", "company", "firm", "shop", "store", "biller", "issued_by", "supplier"]),
+    ("vendor_address",     "top_left",     ["address", "vendor_address", "seller_address", "from_address", "office_address"]),
+    ("vendor_gstin",       "top_left",     ["phone / gstin / tax id", "gstin", "gst", "gst_number", "gstin_number", "vendor_gstin", "seller_gstin", "tax_id"]),
+    ("vendor_phone",       "top_left",     ["phone / gstin / tax id", "phone", "mobile", "contact", "tel", "telephone", "vendor_phone"]),
     ("vendor_email",       "top_left",     ["email", "e-mail", "vendor_email"]),
 
     # ── INVOICE META (Top-Right) ───────────────────────────────────────────────
-    ("invoice_number",     "top_right",    ["invoice_number", "invoice_no", "bill_number", "bill_no", "receipt_no", "challan_no", "ref_no"]),
-    ("invoice_date",       "top_right",    ["invoice_date", "date", "bill_date", "issued_date", "dated"]),
+    ("invoice_number",     "top_right",    ["bill no / customer id", "invoice_number", "invoice_no", "bill_number", "bill_no", "receipt_no", "challan_no", "ref_no"]),
+    ("invoice_date",       "top_right",    ["date", "invoice_date", "bill_date", "issued_date", "dated"]),
     ("due_date",           "top_right",    ["due_date", "payment_due", "pay_by"]),
     ("po_number",          "top_right",    ["po_number", "purchase_order", "order_number", "po_no"]),
 
@@ -75,7 +75,7 @@ INVOICE_TEMPLATE: list[tuple[str, str, list[str]]] = [
     ("sgst",               "bottom_right", ["sgst", "state_gst", "sgst_amount"]),
     ("igst",               "bottom_right", ["igst", "integrated_gst", "igst_amount"]),
     ("total_tax",          "bottom_right", ["total_tax", "tax_total", "gst_total", "vat"]),
-    ("total_amount",       "bottom_right", ["total", "grand_total", "total_amount", "net_total", "amount_due", "bill_total", "payable", "final_amount"]),
+    ("total_amount",       "bottom_right", ["total amount", "total", "grand_total", "total_amount", "net_total", "amount_due", "bill_total", "payable", "final_amount"]),
     ("amount_in_words",    "bottom_right", ["amount_in_words", "in_words", "rupees_in_words", "total_words"]),
 
     # ── PAYMENT INFO (Bottom) ─────────────────────────────────────────────────
@@ -152,6 +152,35 @@ def _extract_from_full_text(full_text: str, aliases: list[str]) -> str | None:
     return None
 
 
+def _parse_markdown_table(full_text: str) -> list[dict[str, str]]:
+    """
+    Parse a markdown table from the Digital Twin text into a list of dicts.
+    Look for | Header | style lines.
+    """
+    import re
+    lines = full_text.splitlines()
+    table_lines = [l.strip() for l in lines if l.strip().startswith("|")]
+    
+    if len(table_lines) < 3: # Need header, separator, and at least one row
+        return []
+    
+    # Simple parser: assume first line is header, second is separator
+    try:
+        header_raw = table_lines[0].strip("|").split("|")
+        headers = [h.strip().lower() for h in header_raw]
+        
+        rows = []
+        for line in table_lines[2:]:
+            if "---" in line: continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) >= len(headers):
+                row = {headers[i]: cells[i] for i in range(len(headers))}
+                rows.append(row)
+        return rows
+    except Exception:
+        return []
+
+
 def map_to_standard_template(raw_extraction: dict[str, Any]) -> dict[str, Any]:
     """
     Map any raw VLM extraction result to the standard invoice template.
@@ -172,10 +201,16 @@ def map_to_standard_template(raw_extraction: dict[str, Any]) -> dict[str, Any]:
 
     for field_name, zone, aliases in INVOICE_TEMPLATE:
         val = None
-        if not is_text_blob:
+        if field_name == "items" and full_text:
+            # Special handling for table parsing from Digital Twin markdown
+            val = _parse_markdown_table(full_text)
+            
+        if not val and not is_text_blob:
             val = _find_value(raw_extraction, aliases)
+            
         if not val and full_text:
             val = _extract_from_full_text(full_text, aliases + [field_name])
+            
         result[field_name] = val or ""
         if val:
             matched_count += 1
