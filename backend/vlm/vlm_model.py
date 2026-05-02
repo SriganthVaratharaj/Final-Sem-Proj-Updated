@@ -198,39 +198,40 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
         if ocr_hint:
             lines = [l for l in ocr_hint.splitlines() if l.strip()]
             if len(lines) > 60:
-                # Take top 40 + bottom 20 (most useful for invoices)
                 lines = lines[:40] + ["..."] + lines[-20:]
             ocr_hint = "\n".join(lines)
-            # Hard char cap as safety net
             if len(ocr_hint) > 1800:
                 ocr_hint = ocr_hint[:1800]
 
-            # Check for Bengali/Gujarati/Tamil chars (valid Indic script)
+            # Check for actual Indic unicode chars (Devanagari to Malayalam range)
             has_indic = any(
-                0x0900 <= ord(ch) <= 0x0DFF  # Devanagari -> Malayalam range
+                0x0900 <= ord(ch) <= 0x0DFF
                 for ch in ocr_hint
             )
 
-            # GIBBERISH DETECTION — two triggers:
-            # 1. All Latin + no Indic = probably junk from English-only images
-            # 2. Cross-script contamination: OCR detected 2+ unrelated script families
-            #    (e.g., Hindi + Telugu + Kannada mixed) = artistic font being misread
             latin_count = len(re.findall(r'[a-zA-Z]', ocr_hint))
             word_count = len(ocr_hint.split())
             is_latin_junk = not has_indic and latin_count > 20 and word_count > 10
 
             detected_langs_in_hint = _detect_scripts(ocr_hint)
             n_families = _count_distinct_script_families(detected_langs_in_hint)
+            # Cross-script = EasyOCR found mixed scripts (e.g., Bengali+Telugu+Kannada) on same image
+            # This means stylized font was misread. The OCR hint is GARBAGE.
             is_cross_script = has_indic and n_families > 1
 
             if is_cross_script:
+                # *** THE KEY FIX ***
+                # The OCR hint is contaminated/garbage from a stylized font.
+                # Sending it to MiniCPM confuses the model badly.
+                # Instead: discard the hint entirely and let MiniCPM read from the image directly.
+                # MiniCPM-V 2.6 has native Indic language support and works better WITHOUT bad hints.
                 logger.warning(
-                    "[vlm] Cross-script contamination detected (%d script families: %s). "
-                    "Passing to VLM anyway since it needs all the help it can get.",
+                    "[vlm] Cross-script contamination detected (%d families: %s). "
+                    "Discarding garbage OCR hint. MiniCPM will read image directly.",
                     n_families, detected_langs_in_hint
                 )
-                # DO NOT discard the hint. The new VLM prompt can handle noisy hints better.
-                ocr_context = f"[OCR HINT - VERIFY AGAINST IMAGE (May contain noise)]\n{ocr_hint}\n[/OCR HINT]"
+                ocr_context = "[READ DIRECTLY FROM IMAGE. Do not invent text. Extract exactly what you see.]"
+                # has_indic stays True so we still route to MiniCPM
             elif is_latin_junk:
                 ocr_context = "[NOTICE: Script detection uncertain. READ DIRECTLY FROM IMAGE.]"
             else:
