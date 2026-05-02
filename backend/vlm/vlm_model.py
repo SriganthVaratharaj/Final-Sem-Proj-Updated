@@ -27,11 +27,11 @@ Include:
 
 {ocr_context}
 
-Output the extracted details as a highly structured Markdown document. 
-CRITICAL: You must visually recreate the original invoice layout as closely as possible.
-- Use Markdown tables (`| Column A | Column B |`) to represent items, quantities, and prices exactly as they appear in boxes/tables.
-- Use headers, bold text, and blockquotes to represent the structure (Vendor at top, totals at bottom).
-- DO NOT output JSON. Just give me the full structured Markdown text (Digital Twin).
+CRITICAL RULES:
+1. ONLY USE THE OCR HINT FOR NON-ENGLISH TEXT. For languages like Hindi, Bengali, Tamil, etc., DO NOT ATTEMPT TO GUESS or "read" the letters from the image yourself. You MUST copy the words EXACTLY character-by-character from the OCR HINT.
+2. DO NOT TRANSLATE. If the bill says "कुल राशि", write "कुल राशि". Do not write "Total Amount".
+3. Visually recreate the original invoice layout as closely as possible using Markdown tables for items and blockquotes/headers for structure.
+4. DO NOT output JSON. Just give me the full structured Markdown text (Digital Twin).
 """
 
 # Unicode ranges for scripts VLM cannot reliably read
@@ -237,6 +237,7 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
                 ocr_context = f"[OCR HINT - VERIFY AGAINST IMAGE]\n{ocr_hint}\n[/OCR HINT]"
         else:
             ocr_context = ""
+            has_indic = False
 
         ref_alphabets = _load_reference_alphabets(ocr_hint=ocr_hint)
 
@@ -244,7 +245,12 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
         # Force strict isolation by mentioning the image ID
         prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}\n" + prompt
         
-        res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY)
+        # Decide which model to use
+        # If it's an English/Latin bill, use Qwen. If Indic script is detected, use the stronger MiniCPM model.
+        model_type = "minicpm" if has_indic else "qwen"
+        logger.info(f"[vlm] Using VLM Model Type: {model_type.upper()}")
+
+        res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY, model_type=model_type)
         parsed = _clean_output(res)
 
         if not parsed:

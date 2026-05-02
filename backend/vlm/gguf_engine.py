@@ -44,14 +44,28 @@ class StandaloneLlamaClient:
             logger.error(f"[gguf] Inference request failed: {e}")
             return {"choices": [{"message": {"content": f"ERROR: {str(e)}"}}]}
 
-def _load_gguf_model():
+def _load_gguf_model(model_type="qwen"):
     """Starts the standalone GPU CUDA server and returns an API client."""
     global _llama_process, _llama_client
-    if _llama_client is not None:
-        return _llama_client
 
-    model_path = Path(LLAVA_GGUF_PATH)
-    mmproj_path = Path(LLAVA_MMPROJ_PATH)
+    if model_type == "minicpm":
+        model_path = Path("hf_models/ggml-model-Q2_K.gguf")
+        mmproj_path = Path("hf_models/mmproj-model-f16.gguf")
+        # Ensure context is large enough for MiniCPM
+        ctx_size = VLM_LOCAL_N_CTX
+    else:
+        model_path = Path(LLAVA_GGUF_PATH)
+        mmproj_path = Path(LLAVA_MMPROJ_PATH)
+        ctx_size = VLM_LOCAL_N_CTX
+
+    # If the process is already running with a DIFFERENT model, we must kill it first
+    # We can track the current loaded model via a simple attribute on the client
+    if _llama_client is not None:
+        if getattr(_llama_client, "loaded_model", None) == model_type:
+            return _llama_client
+        else:
+            logger.info(f"[gguf] Switching VLM from {_llama_client.loaded_model} to {model_type}. Killing old server...")
+            release_vlm_memory()
 
     if not model_path or not model_path.exists():
         logger.error(f"[gguf] VLM model missing at {model_path}")
@@ -67,13 +81,16 @@ def _load_gguf_model():
         str(server_exe),
         "-m", str(model_path),
         "--mmproj", str(mmproj_path),
-        "-c", str(VLM_LOCAL_N_CTX),
+        "-c", str(ctx_size),
         "-ngl", "99",
         "--port", str(port),
         "-cb"  # continuous batching
     ]
     
-    logger.info(f"[gguf] Launching standalone CUDA server to force 100% GPU execution...")
+    if model_type == "qwen":
+        cmd.extend(["--image-min-tokens", "1024"])
+
+    logger.info(f"[gguf] Launching standalone CUDA server to force 100% GPU execution for model {model_type}...")
     _project_root = Path(__file__).resolve().parent.parent.parent
     log_path = _project_root / "scratch" / "llama_server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +110,7 @@ def _load_gguf_model():
             urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
             logger.info("[gguf] Standalone GPU Server is ONLINE.")
             _llama_client = StandaloneLlamaClient(port=port)
+            _llama_client.loaded_model = model_type
             return _llama_client
         except Exception:
             pass
@@ -101,8 +119,8 @@ def _load_gguf_model():
     return None
 
 
-def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "") -> str:
-    client = _load_gguf_model()
+def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_type="qwen") -> str:
+    client = _load_gguf_model(model_type=model_type)
     if client is None:
         return "ERROR: Model not available"
 
