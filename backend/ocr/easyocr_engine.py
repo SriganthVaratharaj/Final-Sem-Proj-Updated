@@ -140,7 +140,10 @@ def run_easyocr(image_bytes: bytes, paddle_lang: str = 'latin') -> tuple:
 
 def run_easyocr_all_indic(image_bytes: bytes, priority_lang: str = None) -> tuple:
     """
-    Run EasyOCR across all supported Indic scripts with dynamic priority.
+    Run EasyOCR across supported Indic scripts.
+    Instead of merging all hallucinations, it tests the priority_lang first. 
+    If priority_lang yields good confidence, it returns it. 
+    Otherwise, it tests others and returns the SINGLE group with the highest confidence.
     """
     if not is_easyocr_available():
         return [], [], [], {"mode": "easyocr_unavailable"}
@@ -152,20 +155,27 @@ def run_easyocr_all_indic(image_bytes: bytes, priority_lang: str = None) -> tupl
         'te': ['te', 'en'],
         'kn': ['kn', 'en'],
         'bn': ['bn', 'en'],
+        'mr': ['mr', 'en'],
     }
 
-    # Order groups: priority first, then the rest
-    script_groups = []
+    # Normalize priority_lang
+    if priority_lang == 'devanagari': priority_lang = 'hi'
+    elif priority_lang == 'bengali': priority_lang = 'bn'
+    elif priority_lang == 'tamil': priority_lang = 'ta'
+    elif priority_lang == 'telugu': priority_lang = 'te'
+    elif priority_lang == 'kannada': priority_lang = 'kn'
+    elif priority_lang == 'marathi': priority_lang = 'mr'
+
+    script_groups_to_try = []
     if priority_lang in groups:
-        script_groups.append(groups[priority_lang])
-        logger.info("[easyocr] Prioritizing script group: %s", priority_lang)
+        script_groups_to_try.append((priority_lang, groups[priority_lang]))
     
     for lang, group in groups.items():
         if lang != priority_lang:
-            script_groups.append(group)
+            script_groups_to_try.append((lang, group))
 
-    all_texts, all_boxes, all_confs = [], [], []
-    seen = set()
+    best_result = ([], [], [], 0) # texts, boxes, confs, avg_conf
+    best_lang = "none"
 
     try:
         import numpy as np
@@ -174,28 +184,42 @@ def run_easyocr_all_indic(image_bytes: bytes, priority_lang: str = None) -> tupl
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         img = _resize_for_easyocr(img)
 
-        for lang_group in script_groups:
+        for lang_code, lang_group in script_groups_to_try:
             try:
                 reader = _get_reader(lang_group)
                 results = reader.readtext(img, detail=1, paragraph=False)
+                
+                texts, boxes, confs = [], [], []
                 for (bbox, text, conf) in results:
                     text = text.strip()
-                    if text and conf > 0.25 and text.lower() not in seen:
-                        seen.add(text.lower())
-                        all_texts.append(text)
-                        all_boxes.append(bbox)
-                        all_confs.append(float(conf))
+                    if text and conf > 0.25:
+                        texts.append(text)
+                        boxes.append(bbox)
+                        confs.append(float(conf))
+                
+                avg_conf = sum(confs) / len(confs) if confs else 0
+                logger.info("[easyocr] Group %s yield %d lines, avg conf: %.2f", lang_code, len(texts), avg_conf)
+                
+                # If the priority lang gives decent results, just use it to save time
+                if lang_code == priority_lang and avg_conf > 0.4 and len(texts) > 5:
+                    best_result = (texts, boxes, confs, avg_conf)
+                    best_lang = lang_code
+                    break
+                
+                if avg_conf > best_result[3]:
+                    best_result = (texts, boxes, confs, avg_conf)
+                    best_lang = lang_code
+
             except Exception as eg:
                 logger.debug("[easyocr] script group %s error: %s", lang_group, eg)
                 continue
 
-        avg_conf = sum(all_confs) / len(all_confs) if all_confs else 0
-        logger.info("[easyocr] all-indic | lines=%d | avg_conf=%.2f", len(all_texts), avg_conf)
-
-        return all_texts, all_boxes, all_confs, {
+        texts, boxes, confs, max_conf = best_result
+        return texts, boxes, confs, {
             "mode": "easyocr_all_indic",
-            "scripts_tried": len(script_groups),
-            "avg_confidence": round(avg_conf, 3),
+            "scripts_tried": len(script_groups_to_try),
+            "best_script": best_lang,
+            "avg_confidence": round(max_conf, 3),
         }
 
     except Exception as e:
