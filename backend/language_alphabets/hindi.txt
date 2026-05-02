@@ -1,35 +1,56 @@
+LANGUAGE: Hindi (Devanagari Script)
+SCRIPT_RANGE: U+0900-U+097F
+
+=== STANDARD ALPHABETS ===
 अ आ इ ई उ ऊ ऋ ए ऐ ओ औ अं अः
-क का कि की कु कू कृ के कै को कौ कं कः
-ख खा खि खी खु खू खृ खे खै खो खौ खं खः
-ग गा गि गी गु गू गृ गे गै गो गौ गं गः
-घ घा घि घी घु घू घृ घे घै घो घौ घं घः
-च चा चि ची चु चू चृ चे चै चो चौ चं चः
-छ छा छि छी छु छू छृ छे छै छो छौ छं छः
-ज जा जि जी जु जू जृ जे जै जो जौ जं जः
-झ झा झि झी झु झू झृ झे झै झो झौ झं झः
-ट टा टि टी टु टू टृ टे टै टो टौ टं टः
-ठ ठा ठि ठी ठु ठू ठृ ठे ठै ठो ठौ ठं ठः
-ड डा डि डी डु डू डृ डे डै डो डौ डं डः
-ढ ढा ढि ढी ढु ढू ढृ ढे ढै ढो ढौ ढं ढः
-ण णा णि णी णु णू णृ णे णै णो णौ णं णः
-त ता ति ती तु तू तृ ते तै तो तौ तं तः
-थ था थि थी थु थू थृ थे थै थो थौ थं थः
-द दा दि दी दु दू दृ दे दै दो दौ दं दः
-ध धा धि धी धु धू धृ धे धै धो धौ धं धः
-न ना नि नी नु नू नृ ने नै नो नौ नं नः
-प पा पि पी पु पू पृ पे पै पो पौ पं पः
-फ फा फि फी फु फू फृ फे फै फो फौ फं फः
-ब बा बि बी बु बू बृ बे बै बो बौ बं बः
-भ भा भि भी भु भू भृ भे भै भो भौ भं भः
-म मा मि मी मु मू मृ मे मै मो मौ मं मः
-य या यि यी यु यू यृ ये यै यो यौ यं यः
-र रा रि री रु रू रृ रे रै रो रौ रं रः
-ल ला लि ली लु लू लृ ले लै लो लौ लं लः
-व वा वि वी वु वू वृ वे वै वो वौ वं वः
-श शा शि शी शु शू शृ शे शै शो शौ शं शः
-ष षा षि षी षु षू षृ षे षै षो षौ षं षः
-स सा सि सी सु सू सृ से सै सो सौ सं सः
-ह हा हि ही हु हू हृ हे है हो हौ हं हः
-क्ष क्षा क्षि क्षी क्षु क्षू क्षृ क्षे क्षै क्षो क्षौ क्षं क्षः
-त्र त्रा त्रि त्री त्रु त्रू त्रृ त्रे त्रै त्रो त्रौ त्रं त्रः
-ज्ञ ज्ञा ज्ञि ज्ञी ज्ञु ज्ञू ज्ञृ ज्ञे ज्ञै ज्ञो ज्ञौ ज्ञं ज्ञः
+क ख ग घ च छ ज झ ट ठ ड ढ ण त थ द ध न प फ ब भ म य र ल व श ष स ह
+क्ष त्र ज्ञ श्र
+
+=== FONT VARIANT CONFUSION MAP ===
+# In thick/bold/decorative Devanagari fonts (common in Indian bills/posters):
+# Format: DECORATIVE_APPEARANCE → ACTUAL_CHARACTER
+# Use this to correct misidentified characters.
+
+VOWELS:
+- Rounded thick "अ" can look like: ओ, ए
+- Decorative "इ" can look like: ई or ि
+- Stylized "ऊ" can look like: उ or ऊ
+
+CONSONANTS (most commonly misread in bold fonts):
+- व  (va)  → often misread as: ब, भ, फ
+- थ  (tha) → often misread as: ध, द
+- ण  (na)  → often misread as: ग, ज
+- ठ  (tha) → often misread as: ट, ड
+- ढ  (dha) → often misread as: ड, ग
+- श  (sha) → often misread as: ष, स
+- ष  (sha) → often misread as: श, स
+- ञ  (nya) → often misread as: ज, न
+- घ  (gha) → often misread as: ग, ध
+- झ  (jha) → often misread as: ज, ह
+- फ  (pha) → often misread as: व, ब, प
+- ख  (kha) → often misread as: क, ग
+- ल  (la)  → often misread as: ल (doubled) or ल+ा
+- ह  (ha)  → often misread as: य, र in thick fonts
+
+CONJUNCTS (most common in bills):
+- विद्युत → electricity (common in power bills)
+- बिजली  → electricity
+- विथूल  → can appear as: फाजीकर्म (decorative rounded font)
+- ग्राहक → customer (common in utility bills)
+- कालावधि → period
+- युनिट   → unit
+- शुल्क   → charge/fee
+- तारीख  → date
+- कुल    → total
+- देय    → payable
+
+=== COMMON BILL KEYWORDS (Hindi) ===
+Invoice/Bill: बिल, चालान, रसीद, पावती
+Customer: ग्राहक, उपभोक्ता
+Date: तारीख, दिनांक
+Amount: राशि, रकम
+Total: कुल, कुल राशि, योग
+Tax: कर, जीएसटी
+Units: युनिट, इकाई
+Due: देय, बकाया
+Period: अवधि, कालावधि

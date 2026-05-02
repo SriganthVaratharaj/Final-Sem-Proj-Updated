@@ -219,43 +219,97 @@ def _count_distinct_script_families(detected_langs: list[str]) -> int:
             families_hit += 1
     return families_hit
 
-def _load_reference_alphabets(ocr_hint: str = "") -> str:
-    """Load ONLY the primary detected language alphabet.
-    Strictly limited to prevent context overflow on 4GB VRAM (n_ctx=4096).
+def _load_reference_alphabets(ocr_hint: str = "", image_langs: list = None, inject_confusion_map: bool = False) -> str:
+    """
+    Load reference alphabets for detected scripts.
+    inject_confusion_map=True  → full confusion map + bill keywords (for stylized fonts)
+    inject_confusion_map=False → compact alphabets only (normal case, saves ~200 tokens)
+    VRAM-safe: hard cap enforced on all sections.
     """
     alphabets_dir = Path(__file__).parent.parent / "language_alphabets"
-    if not alphabets_dir.exists(): return ""
-
-    detected_langs = _detect_scripts(ocr_hint) if ocr_hint else []
-
-    if not detected_langs:
-        logger.info("[vlm] No Indic script in OCR hint — skipping alphabet injection to save tokens.")
+    if not alphabets_dir.exists():
         return ""
 
-    # ── VRAM-safe: inject at most 2 scripts, 200 chars each ──────────────────
-    # Priority: bengali > hindi > tamil > others
-    priority_order = ["bengali", "assamese", "hindi", "marathi", "tamil", "telugu", "kannada", "gujarati", "malayalam", "odia", "punjabi", "maithili"]
-    selected = [l for l in priority_order if l in detected_langs][:2]  # max 2 scripts
+    # Detect from OCR hint or use explicitly passed langs
+    if image_langs:
+        detected_langs = image_langs
+    else:
+        detected_langs = _detect_scripts(ocr_hint) if ocr_hint else []
 
+    if not detected_langs:
+        logger.info("[vlm] No Indic script detected — skipping alphabet injection.")
+        return ""
+
+    # Priority order for injection
+    priority_order = [
+        "bengali", "assamese", "hindi", "marathi", "tamil",
+        "telugu", "kannada", "gujarati", "malayalam", "odia", "punjabi", "maithili"
+    ]
+    selected = [l for l in priority_order if l in detected_langs][:2]  # max 2 scripts
     if not selected:
-        selected = detected_langs[:1]  # fallback: first detected
+        selected = detected_langs[:1]
 
     logger.info("[vlm] Detected scripts: %s — injecting targeted alphabets.", selected)
 
-    ref_text = "[REFERENCE ALPHABETS FOR LANGUAGE DETECTION]\n"
-    ref_text += "Match these chars against image to identify the script. DO NOT copy these into your output.\n"
+    ref_sections = []
     for file in alphabets_dir.glob("*.txt"):
-        if file.stem.lower() in selected:
-            content = file.read_text(encoding="utf-8")
-            char_lines = []
-            for line in content.splitlines():
-                line = line.strip()
-                if line and not line.startswith("===") and not line.startswith("LANGUAGE") and not line.startswith("SCRIPT"):
-                    char_lines.append(line)
-            compact = " ".join(char_lines)[:200]  # Hard cap: 200 chars per script (was 600)
-            ref_text += f"{file.stem.capitalize()}: {compact}\n"
-    ref_text += "[/REFERENCE ALPHABETS]\n"
-    return ref_text
+        if file.stem.lower() not in selected:
+            continue
+        content = file.read_text(encoding="utf-8")
+        
+        # Extract sections: standard alphabets + confusion map
+        standard_chars = []
+        confusion_lines = []
+        keywords_lines = []
+        current_section = None
+
+        for line in content.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if "=== STANDARD ALPHABETS ===" in stripped:
+                current_section = "standard"
+            elif "=== FONT VARIANT CONFUSION MAP ===" in stripped:
+                current_section = "confusion"
+            elif "=== COMMON BILL KEYWORDS" in stripped:
+                current_section = "keywords"
+            elif stripped.startswith("LANGUAGE:") or stripped.startswith("SCRIPT_RANGE:"):
+                continue
+            elif current_section == "standard" and not stripped.startswith("#"):
+                standard_chars.append(stripped)
+            elif current_section == "confusion" and not stripped.startswith("#") and "→" in stripped:
+                confusion_lines.append(stripped)
+            elif current_section == "keywords" and not stripped.startswith("#") and ":" in stripped:
+                keywords_lines.append(stripped)
+
+        # Build compact injection (hard token budget)
+        lang_name = file.stem.capitalize()
+        section = f"[{lang_name} Script Reference]\n"
+        
+        # Standard chars — always included, first 150 chars
+        chars_text = " ".join(standard_chars)[:150]
+        section += f"Alphabets: {chars_text}\n"
+        
+        # Confusion map + keywords — ONLY when stylized font detected (token budget mitigation)
+        if inject_confusion_map:
+            if confusion_lines:
+                section += "Font Confusables (decorative→actual): "
+                section += " | ".join(confusion_lines[:8]) + "\n"
+            if keywords_lines:
+                section += "Bill Keywords: "
+                section += " | ".join(keywords_lines[:5]) + "\n"
+
+        ref_sections.append(section)
+
+
+    if not ref_sections:
+        return ""
+
+    full_ref = "[SCRIPT REFERENCE — Use to correct stylized font misreads]\n"
+    full_ref += "\n".join(ref_sections)
+    full_ref += "[/SCRIPT REFERENCE]\n"
+    return full_ref
+
 
 
 def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: str = "", filename: str = "") -> dict:
@@ -311,7 +365,13 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
             ocr_context = ""
             has_indic = False
 
-        ref_alphabets = _load_reference_alphabets(ocr_hint=ocr_hint)
+        ref_alphabets = _load_reference_alphabets(
+            ocr_hint=ocr_hint,
+            # Inject full confusion map ONLY when stylized font suspected (cross-script garbage).
+            # Clean OCR → compact alphabets only (saves ~200 tokens per request).
+            # English bills → nothing injected.
+            inject_confusion_map=is_cross_script if ocr_hint else False
+        )
 
         prompt = ALL_IN_ONE_PROMPT_TEMPLATE.format(ocr_context=ocr_context, reference_alphabets=ref_alphabets)
         # Force strict isolation by mentioning the image ID

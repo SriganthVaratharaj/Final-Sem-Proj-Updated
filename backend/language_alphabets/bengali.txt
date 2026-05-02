@@ -1,36 +1,48 @@
-অ আ ই ঈ উ ঊ ঋ এ ঐ ও ঔ
-ক কা কি কী কু কূ কৃ কে কৈ কো কৌ
-খ খা খি খী খু খূ খৃ খে খৈ খো খৌ
-গ গা গি গী গু গূ গৃ গে গৈ গো গৌ
-ঘ ঘা ঘি ঘী ঘু ঘূ ঘৃ ঘে ঘৈ ঘো ঘৌ
-ঙ ঙা ঙি ঙী ঙু ঙূ ঙৃ ঙে ঙৈ ঙো ঙৌ
-চ চা চি চী চু চূ চৃ চে চৈ চো চৌ
-ছ ছা ছি ছী ছু ছূ ছৃ ছে ছৈ ছো ছৌ
-জ জা জি জী জু জূ জৃ জে জৈ জো জৌ
-ঝ ঝা ঝি ঝী ঝু ঝূ ঝৃ ঝে ঝৈ ঝো ঝৌ
-ঞ ঞা ঞি ঞী ঞু ঞূ ঞৃ ঞে ঞৈ ঞো ঞৌ
-ট টা টি টী টু টূ টৃ টে টৈ টো টৌ
-ঠ ঠা ঠি ঠী ঠু ঠূ ঠৃ ঠে ঠৈ ঠো ঠৌ
-ড ডা ডি ডী ডু ডূ ডৃ ডে ডৈ ডো ডৌ
-ঢ ঢা ঢি ঢী ঢু ঢূ ঢৃ ঢে ঢৈ ঢো ঢৌ
-ণ ণা ণি ণী ণু ণূ ণৃ ণে ণৈ ণো ণৌ
-ত তা তি তী তু তূ তৃ তে তৈ তো তৌ
-থ থা থি থী থু থূ থৃ থে থৈ থো থৌ
-দ দা দি দী দু দূ দৃ দে দৈ দো দৌ
-ধ ধা ধি ধী ধু ধূ ধৃ ধে ধৈ ধো ধৌ
-ন না নি নী নু নূ নৃ নে নৈ নো নৌ
-প পা পি পী পু পূ পৃ পে পৈ পো পৌ
-ফ ফা ফি ফী ফু ফূ ফৃ ফে ফৈ ফো ফৌ
-ব বা বি বী বু বূ বৃ বে বৈ বো বৌ
-ভ ভা ভি ভী ভু ভূ ভৃ ভে ভৈ ভো ভৌ
-ম মা মি মী মু মূ মৃ মে মৈ মো মৌ
-য যা যি যী যু যূ যৃ যে যৈ যো যৌ
-র রা রি রী রু রূ রৃ রে রৈ রো রৌ
-ল লা লি লী লু লূ লৃ লে লৈ লো লৌ
-শ শা শি শী শু শূ শৃ শে শৈ শো শৌ
-ষ ষা ষি ষী ষু ষূ ষৃ ষে ষৈ ষো ষৌ
-স সা সি সী সু সূ সৃ সে সৈ সো সৌ
-হ হা হি হী হু হূ হৃ হে হৈ হো হৌ
-ড় ড়া ড়ি ড়ী ড়ু ড়ূ ড়ৃ ড়ে ড়ৈ ড়ো ড়ৌ
-ঢ় ঢ়া ঢ়ি ঢ়ী ঢ়ু ঢ়ূ ঢ়ৃ ঢ়ে ঢ়ৈ ঢ়ো ঢ়ৌ
-য় য়া য়ি য়ী যু যূ যৃ যে যৈ যো যৌ
+LANGUAGE: Bengali (বাংলা Script)
+SCRIPT_RANGE: U+0980-U+09FF
+
+=== STANDARD ALPHABETS ===
+অ আ ই ঈ উ ঊ ঋ এ ঐ ও ঔ অং অঃ
+ক খ গ ঘ ঙ চ ছ জ ঝ ঞ ট ঠ ড ঢ ণ ত থ দ ধ ন প ফ ব ভ ম য র ল শ ষ স হ
+ক্ষ জ্ঞ
+
+=== FONT VARIANT CONFUSION MAP ===
+# In thick/decorative Bengali fonts (common in commercial invoices):
+# Format: ACTUAL_CHARACTER → commonly misread as
+
+VOWELS:
+- অ → misread as: ও, এ
+- আ → misread as: অ+া separate
+- ই / ঈ → often confused with each other
+- উ / ঊ → often confused with each other
+- ো (o-matra) → misread as: ো or ো combinations
+
+CONSONANTS:
+- ব  (ba) → misread as: ভ, ব in decorative fonts look similar
+- ভ  (bha)→ misread as: ব, ঘ
+- ণ  (na) → misread as: ন, গ
+- ঠ  (tha)→ misread as: ট, ড
+- ঢ  (dha)→ misread as: ড, ঘ
+- শ  (sha)→ misread as: ষ, স
+- ষ  (sha)→ misread as: শ, স
+- ঘ  (gha)→ misread as: গ, ধ
+- ঝ  (jha)→ misread as: জ, হ
+- ফ  (pha)→ misread as: ব, প
+- ল  (la) → misread as: ল (doubled)
+- হ  (ha) → misread as: ঘ, য in thick fonts
+
+HASANTA and CONJUNCTS:
+- ্ (hasanta/virama) — critical for conjuncts, often missed
+- ক্ষ (ksha), জ্ঞ (gya) — complex conjuncts often misread
+
+=== COMMON BILL KEYWORDS (Bengali) ===
+Invoice/Bill: বিল, চালান, রসিদ, ইনভয়েস
+Customer: গ্রাহক, ক্রেতা
+Date: তারিখ
+Amount: পরিমাণ, টাকা
+Total: মোট, সর্বমোট
+Tax: কর, জিএসটি
+Units: একক, ইউনিট
+Due: প্রদেয়, বাকি
+Period: সময়কাল
+Vendor: বিক্রেতা, দোকান
