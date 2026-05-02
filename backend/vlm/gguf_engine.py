@@ -143,7 +143,9 @@ def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_
         response = client.create_chat_completion(
             messages=messages,
             max_tokens=VLM_LOCAL_MAX_NEW_TOKENS,
-            temperature=0.0
+            temperature=0.1,
+            frequency_penalty=0.5,
+            presence_penalty=0.5
         )
         return response["choices"][0]["message"]["content"]
     except Exception as e:
