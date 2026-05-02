@@ -251,6 +251,7 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
         logger.info(f"[vlm] Using VLM Model Type: {model_type.upper()}")
 
         res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY, model_type=model_type)
+        logger.info(f"[vlm] RAW Output from model before cleaning:\n{res}")
         parsed = _clean_output(res)
 
         if not parsed:

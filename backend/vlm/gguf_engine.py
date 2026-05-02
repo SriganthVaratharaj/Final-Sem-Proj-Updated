@@ -130,11 +130,15 @@ def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_
         messages = []
         if image_bytes:
             b64 = base64.b64encode(image_bytes).decode("utf-8")
+            
+            # MiniCPM-V requires explicit <image> tag in the text prompt to map the vision embeddings
+            final_prompt = f"<image>\n{prompt}" if model_type == "minicpm" else prompt
+
             messages.append({
                 "role": "user",
                 "content": [
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                    {"type": "text", "text": prompt}
+                    {"type": "text", "text": final_prompt}
                 ]
             })
         else:
