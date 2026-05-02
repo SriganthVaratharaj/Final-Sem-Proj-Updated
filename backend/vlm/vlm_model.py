@@ -12,26 +12,45 @@ from backend.vlm.gguf_engine import query_local_llava
 logger = logging.getLogger(__name__)
 
 ALL_IN_ONE_PROMPT_TEMPLATE = """
-Perform a FULL "A to Z" comprehensive data extraction of this invoice.
-IMPORTANT: The invoice might contain multiple mixed languages (e.g., English, Tamil, Hindi, Bengali, etc.). Detect the languages automatically and extract all the text exactly as it appears without translating unless asked.
-Extract EVERY single detail you can see, from the very top to the bottom.
-Include:
-- Header details (Vendor Name, Address, Contact, Email)
-- Invoice Meta (Invoice Number, Date, GSTIN)
-- Buyer/Customer Details
-- ITEM LIST (Every single item, quantity, rate, and amount)
-- Tax details (CGST, SGST, IGST)
-- TOTAL AMOUNT (Check the bottom-right carefully)
+You are a multilingual invoice data extractor. Extract ALL information from this invoice image.
+
+The invoice may be in English, Hindi, Bengali, Tamil, Telugu, Kannada, Gujarati, or a mix.
+Extract text EXACTLY as it appears. Do NOT translate. Do NOT guess.
 
 {reference_alphabets}
 
 {ocr_context}
 
-CRITICAL RULES:
-1. ONLY USE THE OCR HINT FOR NON-ENGLISH TEXT. For languages like Hindi, Bengali, Tamil, etc., DO NOT ATTEMPT TO GUESS or "read" the letters from the image yourself. You MUST copy the words EXACTLY character-by-character from the OCR HINT.
-2. DO NOT TRANSLATE. If the bill says "कुल राशि", write "कुल राशि". Do not write "Total Amount".
-3. Visually recreate the original invoice layout as closely as possible using Markdown tables for items and blockquotes/headers for structure.
-4. DO NOT output JSON. Just give me the full structured Markdown text (Digital Twin).
+OUTPUT FORMAT: Structured Markdown. No JSON.
+
+STRICT RULES — READ CAREFULLY:
+1. Each piece of text must appear EXACTLY ONCE in the output. Do NOT repeat it.
+2. If text appears INSIDE a table/box in the image → put it ONLY in the Items Table section.
+3. If text appears in the HEADER area → put it ONLY in the Header section.
+4. Do NOT copy table cell contents into the Header or Bill Info sections.
+5. If a table row is EMPTY in the image, write empty cells: `| | | | |`
+6. If a table row has data, each DIFFERENT row must have DIFFERENT content. Do NOT repeat the same row multiple times.
+7. If you cannot clearly read a field, write N/A. Do NOT guess or hallucinate.
+8. Numbers, prices, and codes: copy digit-by-digit exactly as seen.
+
+Extract in this order:
+## Header
+- Vendor/Shop Name:
+- Address:
+- Phone / GSTIN / Tax ID:
+
+## Bill Info  
+- Bill No:
+- Date:
+- Total Amount:
+
+## Items Table
+| Sr | Item Name | Qty | Unit Price | Total |
+|---|---|---|---|---|
+(one row per item — only real items visible in image)
+
+## Other Details
+(any remaining text not captured above)
 """
 
 # Unicode ranges for scripts VLM cannot reliably read
@@ -90,13 +109,65 @@ def _strip_hallucinations(text: str) -> str:
 
 
 def _postprocess_fields(data: dict) -> dict:
-    """Strip hallucinations from all string fields recursively."""
+    """Strip hallucinations and deduplicate repeated lines from all string fields."""
     if not isinstance(data, dict):
         return data
-    return {
-        k: (_strip_hallucinations(v) if isinstance(v, str) else v)
-        for k, v in data.items()
-    }
+    
+    result = {}
+    for k, v in data.items():
+        if isinstance(v, str):
+            v = _strip_hallucinations(v)
+            if v:
+                v = _dedup_markdown(v)
+        result[k] = v
+    return result
+
+
+def _dedup_markdown(text: str) -> str:
+    """
+    Remove duplicate rows/lines from markdown output.
+    The VLM often repeats the same table row 3-5x for empty table cells.
+    Strategy: Within a table block, keep only unique rows (preserve header + separator).
+    For non-table lines, deduplicate consecutive identical lines.
+    """
+    if not text:
+        return text
+    
+    lines = text.split('\n')
+    out_lines = []
+    in_table = False
+    seen_table_rows: set = set()
+    prev_line = None
+    
+    for line in lines:
+        stripped = line.strip()
+        
+        # Detect table start/end
+        if stripped.startswith('|') and '---' not in stripped:
+            in_table = True
+        elif in_table and not stripped.startswith('|'):
+            in_table = False
+            seen_table_rows.clear()  # reset for next table
+        
+        if in_table and stripped.startswith('|'):
+            # Header row or separator — always keep
+            if '---' in stripped or stripped == out_lines[-1].strip() if out_lines else False:
+                out_lines.append(line)
+                continue
+            # Normalize row for dedup (strip spaces around pipes)
+            norm = re.sub(r'\s*\|\s*', '|', stripped)
+            if norm not in seen_table_rows:
+                seen_table_rows.add(norm)
+                out_lines.append(line)
+            # else: skip duplicate row
+        else:
+            # Non-table: skip consecutive identical lines
+            if stripped != prev_line:
+                out_lines.append(line)
+            prev_line = stripped
+    
+    return '\n'.join(out_lines)
+
 
 # Unicode block → language file mapping for smart script detection
 _SCRIPT_TO_LANG = [
