@@ -11,7 +11,11 @@ import urllib.error
 import logging
 import base64
 from pathlib import Path
-from backend.config import LLAVA_GGUF_PATH, LLAVA_MMPROJ_PATH, VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY
+from backend.config import (
+    LLAVA_GGUF_PATH, LLAVA_MMPROJ_PATH,
+    MINICPM_GGUF_PATH, MINICPM_MMPROJ_PATH,
+    VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,19 +52,19 @@ def _load_gguf_model(model_type="qwen"):
     """Starts the standalone GPU CUDA server and returns an API client."""
     global _llama_process, _llama_client
 
-    from backend.config import HF_MODELS_DIR
+    # ── Model & port routing ──────────────────────────────────────────────────
+    # Qwen = English/Latin → port 8080
+    # MiniCPM = Indic languages → port 8081
     if model_type == "minicpm":
-        model_path = HF_MODELS_DIR / "MiniCPM-V-2_6-IQ2_M.gguf"
-        mmproj_path = HF_MODELS_DIR / "mmproj-MiniCPM-V-2_6-f16.gguf"
-        # Ensure context is large enough for MiniCPM
-        ctx_size = VLM_LOCAL_N_CTX
+        model_path = MINICPM_GGUF_PATH
+        mmproj_path = MINICPM_MMPROJ_PATH
+        port = 8081
     else:
-        model_path = Path(LLAVA_GGUF_PATH)
-        mmproj_path = Path(LLAVA_MMPROJ_PATH)
-        ctx_size = VLM_LOCAL_N_CTX
+        model_path = LLAVA_GGUF_PATH
+        mmproj_path = LLAVA_MMPROJ_PATH
+        port = 8080
 
-    # If the process is already running with a DIFFERENT model, we must kill it first
-    # We can track the current loaded model via a simple attribute on the client
+    # If already running the same model, reuse it
     if _llama_client is not None:
         if getattr(_llama_client, "loaded_model", None) == model_type:
             return _llama_client
@@ -68,7 +72,7 @@ def _load_gguf_model(model_type="qwen"):
             logger.info(f"[gguf] Switching VLM from {_llama_client.loaded_model} to {model_type}. Killing old server...")
             release_vlm_memory()
 
-    if not model_path or not model_path.exists():
+    if not model_path or not Path(model_path).exists():
         logger.error(f"[gguf] VLM model missing at {model_path}")
         return None
 
@@ -77,22 +81,28 @@ def _load_gguf_model(model_type="qwen"):
         logger.error(f"[gguf] llama-server.exe not found at {server_exe}.")
         return None
 
-    port = 8080
     cmd = [
         str(server_exe),
-        "-m", str(model_path),
+        "-m",        str(model_path),
         "--mmproj", str(mmproj_path),
-        "-c", str(ctx_size),
-        "-ngl", "99",
-        "--port", str(port),
-        "-t", "8",   # Use 8 CPU threads for layers that spill to system RAM
-        "-cb"  # continuous batching
+        "-c",        str(VLM_LOCAL_N_CTX),
+        # ── GPU acceleration flags ────────────────────────────────────────────
+        "-ngl",      "99",         # Offload ALL layers to GPU (VRAM first, spill to shared)
+        "--split-mode", "row",    # Row-split: uses GPU VRAM + shared GPU memory (iGPU/dGPU)
+        "-t",        "8",          # 8 CPU threads for host-side work
+        "--port",    str(port),
+        "-cb",                     # Continuous batching for throughput
+        "-np",       "1",          # Single parallel slot (we run one job at a time)
     ]
-    
+
+    # Model-specific tuning
     if model_type == "qwen":
         cmd.extend(["--image-min-tokens", "1024"])
+    elif model_type == "minicpm":
+        # MiniCPM-V needs larger image token budget for 4-bit model
+        cmd.extend(["--image-max-tokens", "2048"])
 
-    logger.info(f"[gguf] Launching standalone CUDA server to force 100% GPU execution for model {model_type}...")
+    logger.info(f"[gguf] Launching {model_type.upper()} ({Path(model_path).name}) on port {port} with full GPU offload...")
     _project_root = Path(__file__).resolve().parent.parent.parent
     log_path = _project_root / "scratch" / "llama_server.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,19 +115,19 @@ def _load_gguf_model(model_type="qwen"):
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         )
 
-    # Wait for server to be ready (up to 60s)
-    for _ in range(120):
+    # Wait for server to be ready (up to 90s — Q4_K_M loads slower than IQ2_M)
+    for _ in range(180):
         time.sleep(0.5)
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
-            logger.info("[gguf] Standalone GPU Server is ONLINE.")
+            logger.info(f"[gguf] {model_type.upper()} Server ONLINE on port {port}.")
             _llama_client = StandaloneLlamaClient(port=port)
             _llama_client.loaded_model = model_type
             return _llama_client
         except Exception:
             pass
 
-    logger.error("[gguf] Server failed to start within timeout.")
+    logger.error(f"[gguf] {model_type.upper()} server failed to start within timeout.")
     return None
 
 
