@@ -108,6 +108,10 @@ MODEL_LANGUAGE_CODES = {
     'te': 'te',
     'ka': 'ka',
     'arabic': 'arabic',
+    'bengali': 'devanagari', # Fallback to Devanagari if Bengali missing (better than crash)
+    'bn': 'devanagari',
+    'gujarati': 'devanagari',
+    'gu': 'devanagari',
 
     # Indic scripts supported.
     'bengali': 'bn',
@@ -119,7 +123,7 @@ MODEL_LANGUAGE_CODES = {
     'ml': None,
 }
 
-AUTO_LANGUAGES = list(PADDLE_AUTO_LANGUAGES or ['latin', 'devanagari', 'ta', 'te', 'ka', 'bn', 'gu'])
+AUTO_LANGUAGES = list(PADDLE_AUTO_LANGUAGES or ['latin', 'devanagari', 'ta', 'te', 'ka'])
 ACTIVE_AUTO_LANGUAGES = list(AUTO_LANGUAGES)
 
 INDIAN_LANGUAGE_GROUPS = {
@@ -325,6 +329,7 @@ def _sort_by_reading_order(texts, boxes, confidences):
             'confidence': confidence,
             'ycenter': (ymin + ymax) / 2.0,
             'xmin': xmin,
+            'xmax': xmax,
             'height': max(1.0, ymax - ymin),
         })
 
@@ -347,13 +352,32 @@ def _sort_by_reading_order(texts, boxes, confidences):
 
     ordered = []
     for cluster in clusters:
-        ordered.extend(sorted(cluster, key=lambda r: r['xmin']))
+        # Sort current line by X-coordinate
+        sorted_cluster = sorted(cluster, key=lambda r: r['xmin'])
+        
+        # Physical Spacing Reconstruction
+        line_text = ""
+        for i, item in enumerate(sorted_cluster):
+            if i > 0:
+                prev = sorted_cluster[i-1]
+                gap = item['xmin'] - prev['xmax']
+                # Estimate char width based on height (roughly 0.5 ratio)
+                char_width = prev['height'] * 0.45
+                
+                if gap > char_width * 1.5:
+                    num_spaces = min(20, int(gap / char_width))
+                    ordered.append({
+                        'text': " " * num_spaces,
+                        'box': [], 'confidence': 1.0, 'xmin': prev['xmax'] + 1, 'ycenter': prev['ycenter']
+                    })
+            ordered.append(item)
 
     return (
         [r['text'] for r in ordered],
         [r['box'] for r in ordered],
         [r['confidence'] for r in ordered],
     )
+
 
 
 def _script_char_count(text, lang):
@@ -512,7 +536,7 @@ def run_ocr_gguf(image_bytes: bytes):
     """
     logger.info("[ocr] Running fallback GGUF OCR (Paddle-VL)...")
     prompt = "Extract all text from this image exactly as it appears. Maintain reading order."
-    text = query_local_paddle_vl(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY)
+    text = query_local_paddle_vl(image_bytes, prompt)
     
     if "LOCAL_ERROR" in text:
         return [], [], [], {"mode": "error", "error": text}
@@ -524,193 +548,59 @@ def run_ocr_gguf(image_bytes: bytes):
 
 def run_ocr(image, lang=None, image_bytes: bytes = None, filename: str = ""):
     """
-    Run PaddleOCR. If lang is None, all supported languages run in parallel.
-    Detected purely from image content.
+    Run PaddleOCR in an isolated subprocess to prevent VRAM fragmentation.
+    Reverted back to PaddleOCR from Surya OCR due to Surya's severe hallucination 
+    issues on Indic scripts (predicting Bengali/Math tags for Devanagari text).
     """
-    if lang is not None:
-        try:
-            selected_lang = _normalize_lang(lang)
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                tmp_path = tmp.name
-                cv2.imwrite(tmp_path, _image_variant_for_lang(image, selected_lang))
-                
-            sub_script = Path(__file__).parent / "paddle_subprocess.py"
-            cmd = [sys.executable, str(sub_script), tmp_path, selected_lang]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            os.unlink(tmp_path)
-            
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                if "error" in data:
-                    raise Exception(data["error"])
-                texts, boxes, confidences = data["texts"], data["boxes"], data["confidences"]
-            else:
-                raise Exception("Subprocess crashed")
-                
-            texts, boxes, confidences = _sort_by_reading_order(texts, boxes, confidences)
-            is_bengali = any(_has_bengali(t) for t in texts)
-            return texts, boxes, confidences, {
-                'mode': 'single_language', 
-                'selected_language': selected_lang,
-                'script_detected': 'bengali' if is_bengali else None,
-                'indian_language_support': _language_support_report(),
-                'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
-            }
-        except Exception as ocr_exc:
-            logger.warning("[ocr] PaddleOCR library failed: %s. Trying GGUF fallback...", ocr_exc)
-            if image_bytes:
-                return run_ocr_gguf(image_bytes)
-            raise ocr_exc
-
-    auto_langs = ACTIVE_AUTO_LANGUAGES or ['latin']
-
-    # Auto mode: detect once via subprocess
     try:
+        import subprocess
+        import tempfile
+        import cv2
+        import sys
+        
+        logger.info("[ocr] Running PaddleOCR in subprocess...")
+        
         # Save image for subprocess
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
-            cv2.imwrite(tmp_path, _image_variant_for_lang(image, 'default'))
+            # If image is a dict, get default
+            img_to_save = image if not isinstance(image, dict) else image.get('default', image.get('latin'))
+            cv2.imwrite(tmp_path, img_to_save)
+            
+        # Default to a safe multilingual paddle engine (latin + devanagari if possible)
+        # We will use 'hi' as the default for Indian invoices if no lang is specified,
+        # since PaddleOCR's 'hi' model covers Hindi + English well.
+        target_lang = _normalize_lang(lang) if lang else "hi"
             
         sub_script = Path(__file__).parent / "paddle_subprocess.py"
-        cmd = [sys.executable, str(sub_script), tmp_path, 'latin']
+        cmd = [sys.executable, str(sub_script), tmp_path, target_lang]
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         os.unlink(tmp_path)
         
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            boxes = data.get("boxes", [])
+            if "error" in data:
+                logger.error(f"[ocr] Paddle Subprocess Error: {data['error']}")
+                raise Exception(data["error"])
+                
+            texts, boxes, confidences = data["texts"], data["boxes"], data["confidences"]
         else:
-            boxes = []
+            logger.error(f"[ocr] Paddle Subprocess Crashed. Stderr: {result.stderr}")
+            raise Exception("Subprocess crashed")
             
-    except Exception as det_exc:
-        logger.warning("[ocr] PaddleOCR detection failed: %s. Trying GGUF fallback...", det_exc)
+        texts, boxes, confidences = _sort_by_reading_order(texts, boxes, confidences)
+        is_bengali = any(_has_bengali(t) for t in texts)
+        
+        return texts, boxes, confidences, {
+            'mode': 'paddle_subprocess', 
+            'selected_language': target_lang,
+            'script_detected': 'bengali' if is_bengali else None,
+            'indian_language_support': _language_support_report(),
+            'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
+        }
+    except Exception as exc:
+        logger.warning("[ocr] PaddleOCR failed: %s. Trying GGUF fallback...", exc)
         if image_bytes:
             return run_ocr_gguf(image_bytes)
-        raise det_exc
-
-    if not boxes:
-        return [], [], [], {
-            'mode': 'merged_auto',
-            'language_counts': {},
-            'languages_tried': list(auto_langs),
-            'indian_language_support': _language_support_report(),
-            'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
-        }
-
-    results = {}
-
-    def process_candidate(candidate):
-        """Run PaddleOCR in a separate subprocess to avoid DLL/Registry conflicts."""
-        try:
-            import subprocess
-            import tempfile
-            
-            # Save segment to temp file for subprocess
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                tmp_path = tmp.name
-                cv2.imwrite(tmp_path, _image_variant_for_lang(image, candidate))
-            
-            sub_script = Path(__file__).parent / "paddle_subprocess.py"
-            cmd = [sys.executable, str(sub_script), tmp_path, candidate]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            os.unlink(tmp_path)
-            
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                if "error" in data:
-                    logger.warning("[ocr] Subprocess error for %s: %s", candidate, data["error"])
-                    return candidate, None
-                return candidate, (data["texts"], data["boxes"], data["confidences"])
-            else:
-                logger.warning("[ocr] Subprocess crashed for %s: %s", candidate, result.stderr)
-                return candidate, None
-        except Exception as e:
-            logger.error("[ocr] Subprocess invocation failed: %s", e)
-            return candidate, None
-
-    with ThreadPoolExecutor(max_workers=min(len(auto_langs), 4)) as executor:
-        futures = {executor.submit(process_candidate, c): c for c in auto_langs}
-        for future in as_completed(futures):
-            candidate, res = future.result()
-            if res:
-                results[candidate] = res
-
-    if not results:
-        raise RuntimeError("Unable to process image with any supported OCR model.")
-
-    dominant_lang, ranking = _select_dominant_document_language(results)
-    if dominant_lang:
-        texts, boxes_list, confidences = results[dominant_lang]
-        texts, boxes_list, confidences = _sort_by_reading_order(texts, boxes_list, confidences)
-        return texts, boxes_list, confidences, {
-            'mode': 'dominant_document_language',
-            'selected_language': dominant_lang,
-            'languages_tried': list(results.keys()),
-            'language_ranking': [
-                {'language': lang_name, 'score': round(score, 4), 'line_count': line_count}
-                for lang_name, score, line_count in ranking
-            ],
-            'indian_language_support': _language_support_report(),
-            'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
-        }
-
-    header_lang = _select_header_language(results, base_image.shape[0] if hasattr(base_image, 'shape') else 0)
-    if header_lang:
-        texts, boxes_list, confidences = results[header_lang]
-        texts, boxes_list, confidences = _sort_by_reading_order(texts, boxes_list, confidences)
-        return texts, boxes_list, confidences, {
-            'mode': 'header_guided_single_language',
-            'selected_language': header_lang,
-            'languages_tried': list(results.keys()),
-            'language_ranking': [
-                {'language': lang_name, 'score': round(score, 4), 'line_count': line_count}
-                for lang_name, score, line_count in ranking
-            ],
-            'indian_language_support': _language_support_report(),
-            'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
-        }
-
-    texts, boxes_list, confidences, metadata = _merge_auto_results(results)
-    # ── Smart Fallback: Check if results are reliable ──
-    avg_conf = sum(confidences) / len(confidences) if confidences else 0
-    full_text = "".join(texts).strip()
-    
-    # GIBBERISH DETECTION (v4):
-    junk_patterns = [r'fsELsT', r'aEfO3', r'aRlp', r'fBR1', r'zqG9']
-    has_junk = any(re.search(p, full_text) for p in junk_patterns)
-    
-    words = full_text.split()
-    weird_case_count = sum(1 for w in words if any(c.islower() for c in w) and any(c.isupper() for c in w) and len(w) > 2)
-    vowel_ratio = len(re.findall(r'[aeiouAEIOU]', full_text)) / max(1, len(re.findall(r'[a-zA-Z]', full_text)))
-    
-    is_junk = avg_conf < 0.55 or has_junk or weird_case_count > len(words) * 0.15 or vowel_ratio < 0.35
-    
-    if is_junk and image_bytes:
-        logger.warning(f"[ocr] MASTER FALLBACK TRIGGERED: avg_conf={avg_conf:.2f}, vowel_ratio={vowel_ratio:.2f}")
-        # Last resort: GGUF VLM
-        return run_ocr_gguf(image_bytes)
-
-    if texts:
-        metadata['language_ranking'] = [
-            {'language': lang_name, 'score': round(score, 4), 'line_count': line_count}
-            for lang_name, score, line_count in ranking
-        ]
-        metadata['indian_language_support'] = _language_support_report()
-        texts, boxes_list, confidences = _sort_by_reading_order(texts, boxes_list, confidences)
-        return texts, boxes_list, confidences, metadata
-
-    texts, boxes_list, confidences = _sort_by_reading_order(texts, boxes_list, confidences)
-    return texts, boxes_list, confidences, {
-        'mode': 'single_best_language',
-        'selected_language': best_lang,
-        'languages_tried': list(results.keys()),
-        'language_ranking': [
-            {'language': lang_name, 'score': round(score, 4), 'line_count': line_count}
-            for lang_name, score, line_count in ranking
-        ],
-        'indian_language_support': _language_support_report(),
-        'indian_language_groups': INDIAN_LANGUAGE_GROUPS,
-    }
+        raise exc

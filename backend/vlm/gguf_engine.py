@@ -14,7 +14,7 @@ from pathlib import Path
 from backend.config import (
     LLAVA_GGUF_PATH, LLAVA_MMPROJ_PATH,
     MINICPM_GGUF_PATH, MINICPM_MMPROJ_PATH,
-    VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY
+    VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY, KAGGLE_VLM_URL
 )
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,25 @@ def _load_gguf_model(model_type="qwen"):
     return None
 
 
-def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_type="qwen") -> str:
+    # ── REMOTE KAGGLE VLM ROUTING ─────────────────────────────────────────────
+    if KAGGLE_VLM_URL and KAGGLE_VLM_URL.strip():
+        logger.info("[gguf] Routing request to remote Kaggle VLM: %s", KAGGLE_VLM_URL)
+        try:
+            b64 = base64.b64encode(image_bytes).decode("utf-8")
+            payload = json.dumps({
+                "image_base64": b64,
+                "prompt": prompt
+            }).encode('utf-8')
+            
+            req = urllib.request.Request(f"{KAGGLE_VLM_URL.rstrip('/')}/extract", data=payload, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=300) as response:
+                result = json.loads(response.read().decode())
+                return result.get("data", "ERROR: Empty response from Kaggle")
+        except Exception as e:
+            logger.error("[gguf] Remote Kaggle request failed: %s", e)
+            return f"ERROR: Remote VLM failed: {e}"
+
+    # ── LOCAL GGUF INFERENCE ──────────────────────────────────────────────────
     client = _load_gguf_model(model_type=model_type)
     if client is None:
         return "ERROR: Model not available"

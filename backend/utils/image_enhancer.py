@@ -200,8 +200,8 @@ def split_dual_invoice(image_bytes: bytes) -> list[bytes]:
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
-        # Wide image = likely dual
-        if w > h * 1.1:
+        # Wide image = likely dual (e.g. side-by-side scans)
+        if w > h * 1.8:
             logger.info("[enhancer] Wide image detected. Splitting into Left and Right segments.")
             left = img.crop((0, 0, int(w * 0.5), h))
             right = img.crop((int(w * 0.5), 0, w, h))
@@ -270,7 +270,7 @@ def split_for_extraction(image_bytes: bytes) -> list[bytes]:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         w, h = img.size
 
-        if w > h * 1.1:
+        if w > h * 1.8:
             # Wide → side-by-side dual invoice
             logger.info("[enhancer] D&C: Wide image → splitting Left/Right")
             left  = img.crop((0, 0, w // 2, h))

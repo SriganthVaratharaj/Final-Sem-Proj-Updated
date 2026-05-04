@@ -9,39 +9,33 @@ from typing import Any
 from backend.config import VLM_REQUIRED_FIELDS, INTERNAL_MODEL_API_KEY
 from backend.vlm.gguf_engine import query_local_llava
 from backend.utils.image_enhancer import split_for_extraction
+from backend.ocr.engine import run_ocr
 
 logger = logging.getLogger(__name__)
 
-ALL_IN_ONE_PROMPT_TEMPLATE = """
-You are an invoice OCR engine. Your ONLY job is to read every piece of text visible in this image, from TOP to BOTTOM, LEFT to RIGHT.
+MASTER_PROMPT_TEMPLATE = """
+You are an Expert Document Intelligence AI. Analyze the image and perform these strict tasks:
 
-The invoice may be in English, Hindi, Bengali, Tamil, Telugu, Kannada, Gujarati, or a mix.
+Step 1: Identify if the image is a 'Bill/Invoice' or a 'General Document'.
+Step 2: Identify the primary native language of the text.
 
-{reference_alphabets}
+{extraction_instruction}
 
 {ocr_context}
 
-CRITICAL RULES:
-1. Read EVERY line you can see in the image, in the order it appears top-to-bottom.
-2. Do NOT skip any line — even if you don't understand the label.
-3. Copy each label AND its value EXACTLY as seen. Do NOT translate.
-4. For numbers (IDs, amounts, dates): copy digit-by-digit. Do NOT guess or truncate.
-5. If text is white on a dark/colored background, look carefully — it is still readable.
-6. Do NOT repeat any line.
-7. If you cannot read a specific word clearly, write [unclear] for that word only.
+{reference_alphabets}
 
-OUTPUT FORMAT — one line per visible text row:
-```
-LINE 1: <exact text of first line>
-LINE 2: <exact text of second line>
-LINE 3: <exact text of third line>
-...
-```
-
-Also, at the end, output a separate TOTALS section:
-```
-TOTAL AMOUNT: <value>
-```
+Step 4 (Format): You MUST return the final output STRICTLY as a single JSON object in the exact structure below. Do NOT add conversational text. Do NOT wrap in markdown code blocks.
+{{
+  "metadata": {{
+      "classification": "Bill or Document",
+      "detected_language": "Language Name"
+  }},
+  "native_json": {{ ... }}, 
+  "english_json": {{ ... }}, 
+  "native_layout_text": "...", 
+  "english_layout_text": "..." 
+}}
 """
 
 # Unicode ranges for scripts VLM cannot reliably read
@@ -60,21 +54,28 @@ def _is_unsupported_script(text: str) -> bool:
 
 def _clean_output(text: str) -> dict | None:
     if not text: return None
-    # Strip markdown code fences
+    # Strip markdown code fences if model hallucinated them
     text = text.replace("```json", "").replace("```", "").strip()
-    # Handle escaped JSON inside a string (e.g. \"key\": \"val\")
-    if text.startswith('"') or '\\"' in text:
-        try:
-            text = json.loads(f'"{text}"') if text.startswith('"') else text.replace('\\"', '"')
-        except Exception:
-            pass
-    # We explicitly asked for Markdown, NOT JSON. 
-    # Do not parse {}, just return the full text for the Digital Twin.
-    return {
-        "full_extraction": text.strip(),
-        "is_comprehensive": True,
-        "_source": "vlm_descriptive_list"
-    }
+    try:
+        # Try to find the first '{' and last '}' to extract JSON
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            text = text[start:end+1]
+        
+        parsed = json.loads(text)
+        return {
+            "fields": parsed,
+            "is_comprehensive": True,
+            "_source": "master_vlm_json"
+        }
+    except Exception as e:
+        logger.error("[vlm] JSON parsing failed: %s", e)
+        return {
+            "full_extraction": text.strip(),
+            "is_comprehensive": False,
+            "_source": "vlm_raw_fallback"
+        }
 
 # ── POINT 3: Quick Language Scan Prompt ──────────────────────────────────────
 _LANG_SCAN_PROMPT = """
@@ -390,12 +391,32 @@ def vlm_extract_all(image_bytes: bytes, correction_rules: str = "", ocr_hint: st
 
 
 def _extract_single_segment(image_bytes: bytes, ocr_hint: str = "", filename: str = "") -> dict:
-    """Core extraction logic for a single image segment."""
+    """Core extraction logic for a single image segment using Hybrid OCR-VLM."""
     try:
         image_id = Path(filename).stem if filename else "invoice"
-        # 4096 ctx = 2880 image tokens + ~400 prompt tokens → ~816 left for OCR hint
-        # Keep first 40 lines (header/items) + last 20 lines (totals/tax), cap at 1800 chars
-        if ocr_hint:
+        import cv2
+        import numpy as np
+        
+        # ── PASS 0: High-Accuracy PaddleOCR ───────────────────────────────────
+        # We run the local PaddleOCR engine first to get the ground truth text.
+        # This prevents VLM hallucinations (like the 'Delhi' loop).
+        logger.info("[vlm] Running Hybrid Pass 0: PaddleOCR...")
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        ocr_texts, _, _, ocr_meta = run_ocr(img_cv, None, image_bytes, filename=filename)
+        paddle_text = "\n".join(ocr_texts) if ocr_texts else ""
+        
+        # Give GPU a moment to clear Paddle models before VLM starts
+        import time
+        time.sleep(3)
+        
+        if paddle_text:
+            logger.info("[vlm] PaddleOCR success (%d lines found).", len(ocr_texts))
+            # Use PaddleOCR as the PRIMARY hint.
+            ocr_hint = paddle_text
+        
+        # ── PASS 1: Language Scan ────────────────────────────────────────────
             lines = [l for l in ocr_hint.splitlines() if l.strip()]
             if len(lines) > 60:
                 lines = lines[:40] + ["..."] + lines[-20:]
@@ -464,33 +485,56 @@ def _extract_single_segment(image_bytes: bytes, ocr_hint: str = "", filename: st
         else:
             lang_rule_injection = ""
 
-        prompt = ALL_IN_ONE_PROMPT_TEMPLATE.format(
+        # ── MASTER PROMPT CONSTRUCTION ────────────────────────────────────────
+        if correction_rules:
+            ext_instr = f"Step 3 (Extraction): The user has requested: \"{correction_rules}\". Extract ONLY the fields relevant to this request."
+        else:
+            ext_instr = "Step 3 (Extraction): Perform a full structured extraction. Capture all key-value pairs, tables, and paragraphs. Preserve the logical layout."
+
+        prompt = MASTER_PROMPT_TEMPLATE.format(
+            extraction_instruction=ext_instr,
             ocr_context=ocr_context,
             reference_alphabets=ref_alphabets
         )
-        # Inject language-specific rule right after the task header (max 1 sentence, ~20 tokens)
-        prompt = f"### TASK: EXTRACT DATA FROM IMAGE: {image_id}{lang_rule_injection}\n" + prompt
 
         # Decide model: language scan overrides the has_indic heuristic for accuracy
-        if detected_lang == "english":
-            model_type = "qwen"
-        else:
-            model_type = "minicpm"
-        logger.info("[vlm] Pass 2 extraction | lang=%s | model=%s", detected_lang, model_type)
+        model_type = "qwen" if detected_lang == "english" else "minicpm"
+        logger.info("[vlm] Master Pass extraction | lang=%s | model=%s", detected_lang, model_type)
 
         res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY, model_type=model_type)
-        parsed = _clean_output(res)
+        parsed_result = _clean_output(res)
 
-        if not parsed:
-            # If parsing failed entirely, return the raw first 300 chars for visibility
+        if not parsed_result or "_source" not in parsed_result or parsed_result["_source"] != "master_vlm_json":
+            # If parsing failed entirely, return raw
             return {
-                "fields": {"Raw Output": res[:300] if res else "No response from model"}, 
+                "fields": {"full_extraction": res[:1000] if res else "No response"}, 
                 "is_invoice": False, 
-                "_source": "llava_parsing_failed"
+                "_source": "vlm_parsing_failed"
             }
 
-        # Strip hallucinated repeated values (e.g. "33 33 33 33...")
-        cleaned_fields = _postprocess_fields(parsed)
+        master_data = parsed_result["fields"]
+        
+        # Save to local files for history/persistence as requested by user
+        try:
+            from backend.config import OUTPUT_DIR
+            debug_path = OUTPUT_DIR / "debug" / image_id
+            debug_path.mkdir(parents=True, exist_ok=True)
+            with open(debug_path / "native.json", "w", encoding="utf-8") as f:
+                json.dump(master_data.get("native_json", {}), f, ensure_ascii=False, indent=4)
+            with open(debug_path / "english.json", "w", encoding="utf-8") as f:
+                json.dump(master_data.get("english_json", {}), f, ensure_ascii=False, indent=4)
+            with open(debug_path / "native_ocr.txt", "w", encoding="utf-8") as f:
+                f.write(master_data.get("native_layout_text", ""))
+            with open(debug_path / "english_ocr.txt", "w", encoding="utf-8") as f:
+                f.write(master_data.get("english_layout_text", ""))
+        except Exception as e:
+            logger.warning("[vlm] Failed to save debug files: %s", e)
+
+        # Map fields for pipeline compatibility
+        final_fields = master_data.get("native_json", {})
+        final_fields["full_extraction"] = master_data.get("native_layout_text", "")
+        final_fields["english_extraction"] = master_data.get("english_layout_text", "")
+        final_fields["metadata"] = master_data.get("metadata", {})
 
         # EMPTY OUTPUT RECOVERY: If VLM returned empty (hallucination stripped or blank),
         # retry once with NO OCR hint — pure image-only read.

@@ -56,11 +56,13 @@ ALLOWED_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"
 # ── Hugging Face & Internal Keys ──────────────────────────────────────────────
 HF_TOKEN: str = os.getenv("HF_TOKEN", "")
 INTERNAL_MODEL_API_KEY: str = os.getenv("INTERNAL_MODEL_API_KEY", "inv_ai_local_default_key")
+KAGGLE_VLM_URL: str = os.getenv("KAGGLE_VLM_URL", "")
+
 
 # ── Module 1: PaddleOCR (runs locally) ───────────────────────────────────────
 PADDLE_AUTO_LANGUAGES: list[str] = _parse_csv_env(
     "PADDLE_AUTO_LANGUAGES",
-    ["latin", "devanagari", "ta", "te", "ka", "bn", "gu"],
+    ["latin", "devanagari", "ta", "te", "ka"],
 )
 OCR_FORCE_DOMINANT_LANGUAGE: bool = os.getenv("OCR_FORCE_DOMINANT_LANGUAGE", "true").lower() in {"1", "true", "yes", "on"}
 

@@ -7,10 +7,17 @@ import logging
 import base64
 from pathlib import Path
 
-# Force CPU for subprocess to avoid any CUDA conflict
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ['FLAGS_selected_gpus'] = ''
+# Environment cleanup for Windows/CPU stability
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+os.environ["TRANSFORMERS_NO_TENSORFLOW"] = "1"
+os.environ["USE_TF"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ['FLAGS_allocator_strategy'] = 'auto_growth'
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+if 'CUDA_VISIBLE_DEVICES' in os.environ:
+    del os.environ['CUDA_VISIBLE_DEVICES']
+
 
 # Silence logs
 logging.getLogger("ppocr").setLevel(logging.ERROR)
@@ -19,7 +26,7 @@ def run_isolated_ocr(image_path, lang):
     try:
         from paddleocr import PaddleOCR
         # Initialize
-        ocr = PaddleOCR(lang=lang, use_gpu=False, use_angle_cls=True, show_log=False)
+        ocr = PaddleOCR(lang=lang, use_gpu=False, use_angle_cls=True, show_log=False, enable_mkldnn=True)
         
         # Read image
         img = cv2.imread(image_path)
