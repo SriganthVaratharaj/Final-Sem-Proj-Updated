@@ -1,19 +1,16 @@
 import { useState } from 'react'
-import OcrTab from './tabs/OcrTab'
-import LayoutTab from './tabs/LayoutTab'
 import VlmTab from './tabs/VlmTab'
 import DigitalTwinTab from './tabs/DigitalTwinTab'
 import ExportsTab from './tabs/ExportsTab'
 
 const TABS = [
-  { key: 'digital_twin', label: 'Digital Twin' },
-  { key: 'ocr', label: 'OCR' },
-  { key: 'vlm', label: 'VLM' },
+  { key: 'vlm', label: 'Structured Extraction' },
+  { key: 'digital_twin', label: 'Spatial Twin' },
   { key: 'exports', label: 'Exports' },
 ]
 
 function ResultCard({ result, defaultOpen }) {
-  const [active, setActive] = useState('digital_twin')
+  const [active, setActive] = useState('vlm')
   const [expanded, setExpanded] = useState(defaultOpen)
 
   const success = result.status === 'success'
@@ -32,10 +29,12 @@ function ResultCard({ result, defaultOpen }) {
           {result.error && <div className="text-xs text-red-600 mt-0.5">{result.error}</div>}
           {success && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              <span className="tag capitalize">{result.document_type || 'unknown'}</span>
-              <span className="tag">{result.ocr_texts?.length || 0} words</span>
+              <span className="tag capitalize">{result.metadata?.classification || 'Document'}</span>
+              {result.metadata?.detected_language && (
+                <span className="tag">{result.metadata.detected_language}</span>
+              )}
               {result.vlm_source && result.vlm_source !== 'unavailable' && (
-                <span className="tag">VLM: {result.vlm_source}</span>
+                <span className="tag">Kaggle Node</span>
               )}
             </div>
           )}
@@ -62,10 +61,8 @@ function ResultCard({ result, defaultOpen }) {
           </div>
 
           <div className="p-4">
-            {active === 'digital_twin' && <DigitalTwinTab result={result} />}
-            {active === 'ocr' && <OcrTab result={result} />}
-            {active === 'layout' && <LayoutTab result={result} />}
             {active === 'vlm' && <VlmTab result={result} />}
+            {active === 'digital_twin' && <DigitalTwinTab result={result} />}
             {active === 'exports' && <ExportsTab result={result} />}
           </div>
         </div>

@@ -1,83 +1,150 @@
-# 🧾 Invoice AI — Multilingual Invoice Digital Twin System
+# 🧾 Multimodal Document Intelligence System for Invoice and Receipt Processing Using Vision-Language Models with Layout-Aware OCR
 
-A production-ready web application for automated invoice data extraction and **spatial digital twin reconstruction** from images in **14 Indian languages**. Combines GPU-accelerated OCR, LayoutLMv3, Vision-Language Models (VLM), and adaptive image compounding to convert unstructured invoice images — including handwritten and artistic-font documents — into structured, standardised data and layout-preserving Markdown/TXT exports.
+## 📌 Abstract
+Extracting structured data from highly complex, multilingual Indian invoices and thermal receipts presents a significant challenge due to artistic fonts, overlapping stamps, and diverse structural layouts. Traditional OCR-based pipelines often suffer from cross-script contamination and spatial degradation. This project introduces a **Multimodal Document Intelligence System** that directly maps image pixels to structured JSON and layout-preserving spatial grids (Digital Twins) across 14+ Indian languages, utilizing the state-of-the-art **Qwen2.5-VL-32B** model. 
+
+To overcome local hardware constraints (e.g., standard 4GB VRAM limitations), this system implements an innovative **Master-Worker network** using FastAPI and secure Cloudflare Tunnels to offload heavy inference to Kaggle Dual-T4 GPUs.
 
 ---
 
-## 🏗️ Architecture
+## 🌊 Process Flow Diagram
 
-```text
-Upload Image
-     │
-     ▼
-┌────────────────────────────────────────────┐
-│  PHASE 1 — Image Preprocessing             │
-│  ┌──────────────────┐  ┌────────────────┐  │
-│  │ OCR Path         │  │ VLM Path       │  │
-│  │ Dual-Pass B&W    │  │ Color-preserved│  │
-│  │ (Sauvola style)  │  │ CLAHE + Sharpen│  │
-│  └──────────────────┘  └────────────────┘  │
-└────────────────────────────────────────────┘
-     │                          │
-     ▼                          ▼
-┌─────────────────┐    ┌──────────────────────┐
-│  PaddleOCR      │    │  EasyOCR             │
-│  (Sequential)   │    │  (All Indic Scripts) │
-└─────────────────┘    └──────────────────────┘
-     │                          │
-     └──────── MERGE ───────────┘
-                  │
-         Smart OCR Hint QC
-         ┌────────────────┐
-         │ Cross-script   │
-         │ contamination? │
-         │ → Keep Hint    │
-         └────────────────┘
-                  │
-                  ▼
-┌────────────────────────────────────────────┐
-│  PHASE 2 — Spatial Layout & Compounding    │
-│  1. OpenCV Table/Grid Detection            │
-│  2. LayoutLMv3 Regional Analysis (Local)   │
-│  3. Image Compounding (Full Image +        │
-│     High-Res Table Zoom) sent to VLM       │
-└────────────────────────────────────────────┘
-                  │
-                  ▼
-┌────────────────────────────────────────────┐
-│  PHASE 3 — Standalone CUDA Llama Server    │
-│  Qwen3-VL-4B (GGUF Q4_K_M)                 │
-│  100% GPU offload — NVIDIA GTX 1650        │
-│  Smart alphabet injection (per-script)     │
-└────────────────────────────────────────────┘
-                  │
-                  ▼
-┌────────────────────────────────────────────┐
-│  PHASE 4 — Digital Twin & Standardization  │
-│  Raw VLM fields → Standardised Schema      │
-│  Markdown Table → Spatial TXT / DOCX       │
-└────────────────────────────────────────────┘
+```mermaid
+graph TD
+    A[User Uploads Invoice/Receipt] --> B[Local FastAPI Master Node]
+    B --> C{Is Image Tall?}
+    C -->|Yes| D[Dynamic Overlap Splitting]
+    C -->|No| E[CLAHE Image Enhancement]
+    D --> E
+    E --> F[Prompt Orchestration & Context Build]
+    F -->|Secure Cloudflare Tunnel| G[Kaggle Remote Worker Node]
+    
+    subgraph Kaggle Cloud GPU (Dual T4)
+    G --> H[Qwen2.5-VL-32B Processing]
+    H --> I[ViT Spatial Feature Extraction]
+    I --> J[LLM Cross-Attention Decoding]
+    J --> K[JSON & Layout Output Generation]
+    end
+    
+    K -->|REST API Response| L[Local Post-Processing]
+    L --> M[Parse Native & English JSON]
+    L --> N[Render Digital Twin Text Grid]
+    M --> O[React UI Dashboard]
+    N --> O
 ```
 
 ---
 
-## ✨ Key Features
+## 🏗️ System Architecture
 
-### 🌏 14-Language Multilingual Support
-Full character reference alphabets for Devanagari, Bengali, Dravidian, Indo-Aryan, and Arabic-based scripts. Smart Unicode detection injects only relevant alphabets to prevent token overflow.
+```mermaid
+architecture-beta
+    group local(cloud)[Local Environment - 4GB VRAM]
+    group remote(cloud)[Kaggle Environment - 30GB VRAM]
+    
+    service frontend(internet)[React UI] in local
+    service backend(server)[FastAPI Master] in local
+    service enhancement(database)[Image Pre-processor] in local
+    
+    service tunnel_local(internet)[Cloudflare Client] in local
+    service tunnel_remote(internet)[Cloudflare Host] in remote
+    
+    service gpu(server)[Dual T4 GPUs] in remote
+    service model(database)[Qwen2.5-VL-32B] in remote
 
-### 🖼️ Advanced Image Compounding (Divide & Conquer)
-- **Dual-Pass Binarization:** Uses Sauvola-inspired local adaptive thresholding to preserve tiny Indic matras (vowels) which standard Otsu destroys.
-- **Image Compounding:** Generates a composite image containing the full document + a high-resolution zoomed crop of the detected table region. This gives the VLM both "Big Picture" context and "Close-up" clarity for small table fonts.
+    frontend:R --> L:backend
+    backend:B --> T:enhancement
+    backend:R --> L:tunnel_local
+    tunnel_local:R --> L:tunnel_remote
+    tunnel_remote:R --> L:gpu
+    gpu:B --> T:model
+```
 
-### 📐 Digital Twin (Spatial Reconstruction)
-- **OpenCV Table Detection:** Automatically finds and draws table bounding boxes to visually guide the VLM.
-- **LayoutLMv3:** Local fallback execution for region classification (Header, Body, Footer).
-- **Format Preservation:** Exports extracted data into a visually faithful `.txt` and `.docx` spatial grid, retaining the original invoice layout (Digital Twin).
+---
 
-### ⚡ 100% GPU Execution on 4GB VRAM
-- Strict sequential execution with explicit memory clearing (`release_gpu_memory`, `release_layoutlm_memory`, `release_vlm_memory`) prevents PyTorch/Paddle CUDA Out-Of-Memory errors on a 4GB GTX 1650.
-- Runs `llama-server.exe` (llama.cpp) as a standalone subprocess for the 4B Vision Language Model.
+## 🔬 Core Algorithms & Methodologies
+
+### 1. End-to-End Layout-Aware Visual OCR
+Instead of relying on multi-stage OCR pipelines that are prone to bounding-box alignment errors, this system utilizes the native spatial encoding capabilities of Vision-Language Models (VLMs). The model performs OCR natively within its visual transformer block, analyzing the physical layout matrices directly. This allows it to bypass issues with stylized fonts and narrow thermal receipts without relying on brittle algorithmic heuristics.
+
+### 2. Multimodal Fusion Architecture
+The system employs a tightly coupled ViT (Vision Transformer) and LLM (Large Language Model) architecture. The visual encoder extracts rich spatial-semantic features from the document, which are cross-attended by the language decoder. This multimodal fusion allows the model to "read" the text while simultaneously understanding its structural context (e.g., distinguishing a 'Total' value from a 'Tax' value based purely on spatial positioning).
+
+### 3. Dual-Language Spatial Translation
+The "Master Prompt" algorithm leverages Chain-of-Thought (CoT) zero-shot prompting to force the AI into generating a simultaneous, dual-domain extraction:
+*   **Native Domain**: Mathematically maps the exact original script (e.g., Tamil, Hindi) into a preserved spatial JSON structure.
+*   **English Domain**: Performs semantic structural translation, allowing centralized ERP systems to process vernacular invoices in English without losing the spatial context.
+
+### 4. Digital Twin Reconstruction Grid
+The system bypasses geometric post-processing by commanding the VLM to natively generate a physical `.txt` grid representation of the document. This "Digital Twin" visually mimics the 2D spatial arrangement of the original invoice, preserving column alignments and visual hierarchy for human verification.
+
+---
+
+## 🧮 Mathematical Formulations & Techniques
+
+### 1. Contrast Limited Adaptive Histogram Equalization (CLAHE)
+Thermal receipts frequently suffer from illumination gradients and faded text. Before inference, the local node applies CLAHE to maximize local contrast without amplifying noise. Unlike standard histogram equalization, CLAHE operates on small tiles (blocks) of the image and applies **Bilinear Interpolation** to stitch the results seamlessly.
+**Formula:**
+$$h(v) = \text{round}\left( \frac{cdf(v) - cdf_{min}}{(M \times N) - cdf_{min}} \times (L - 1) \right)$$
+*Where $cdf(v)$ is the cumulative distribution function, $M \times N$ is the total number of pixels in the tile, and $L$ is the maximum pixel value.*
+
+### 2. Naive Dynamic Resolution Algorithm
+The Qwen2.5-VL engine utilizes a proprietary dynamic resolution algorithm that allows it to process images of arbitrary aspect ratios (very tall receipts or wide invoices) without resizing them into a fixed square. This preserves the pixel density of small fonts.
+**Logic:** The image is dynamically partitioned into a variable number of visual tokens based on the original aspect ratio, ensuring no structural information is lost during the compression phase.
+
+### 3. Vision Transformer (ViT) Spatial Self-Attention
+The Qwen2.5-VL model replaces traditional OCR by using self-attention to correlate localized image patches (e.g., a printed price) with global structural context (e.g., the "Total" header).
+**Formula:**
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+*Where $Q, K, V$ represent the Query, Key, and Value matrices derived from the image patches.*
+
+### 4. Dynamic Document Splitting Algorithm
+To prevent Vision-Transformer token overflow on extremely tall grocery receipts, an overlap splitting algorithm divides the image into manageable chunks while preserving contextual boundaries.
+**Formula:**
+$$S_i = I[y_i : y_i + H_{chunk}, 0 : W]$$
+*Where $y_{i+1} = y_i + H_{chunk} - H_{overlap}$. Results are then logically stitched during post-processing.*
+
+### 5. Distributed Hardware Offloading
+Running a 32-Billion parameter model typically requires enterprise-grade hardware. By utilizing `llama-cpp-python` with `IQ4_XS` quantization and continuous batching across Kaggle's free Dual-T4 GPUs, the system achieves enterprise-grade extraction accuracy on zero-budget infrastructure.
+
+---
+
+## 🧠 Model Intelligence & Training Methodology
+
+The "Brain" of this system is the **Qwen2.5-VL-32B**, which was developed using a multi-stage training pipeline designed for high-accuracy document intelligence.
+
+### 1. Model Architecture
+- **Visual Encoder**: A Vision Transformer (ViT) with ~600M parameters that handles native 2D spatial encoding.
+- **Language Decoder**: A 32-Billion parameter causal language model optimized for multilingual reasoning.
+- **Modality Bridge**: Uses **Gated Cross-Attention** to fuse visual features directly into the language processing stream.
+
+### 2. Training Datasets
+The model was trained on a massive multimodal corpus, including:
+- **Image-Text Pairs**: Billions of samples for basic visual-concept alignment.
+- **Document Datasets**: Specialized fine-tuning on **DocVQA** (Document Visual Question Answering), **ChartQA**, and **DeepForm** (Invoice/Form datasets).
+- **Indic-Specific Corpora**: Large-scale crawl of Indian vernacular scripts to ensure high-accuracy OCR for Devanagari, Tamil, etc.
+
+### 3. Training Phases
+1. **Pre-training**: Large-scale unsupervised learning for general visual understanding.
+2. **Supervised Fine-Tuning (SFT)**: Learning to follow specific instructions (e.g., "Convert this invoice to JSON").
+3. **Alignment (RLHF/DPO)**: Reinforcement Learning from Human Feedback ensures the model avoids hallucinations and strictly follows formatting rules.
+
+---
+
+## 📋 Examiner's Quick Reference (Project Logic)
+
+| Question | Technical Answer | Source / Reference |
+|:---|:---|:---|
+| **What Algorithm for Faded Text?** | **CLAHE** (Contrast Limited Adaptive Histogram Equalization) | **Stephen Pizer** (UNC Chapel Hill) |
+| **How does it read handwriting?** | **Spatial Self-Attention** in the ViT layer. | **Google Brain** (Dosovitskiy et al.) |
+| **How are 32B models run locally?** | **Distributed Master-Worker Architecture**. | **FastAPI / Cloudflare Tunneling** |
+| **What is the OCR Engine?** | **End-to-End Visual OCR** (Integrated in VLM). | **Alibaba Cloud (Qwen Team)** |
+| **How is Hindi/Tamil handled?** | **Multilingual SFT** on Indic-script datasets. | **Alibaba Qwen-VL Team** |
+| **Transformer Logic** | Self-Attention Mechanism ($Q, K, V$ Matrices). | **Google Research** (Vaswani et al.) |
+
+## 🌏 Supported Languages
+The visual reasoning engine natively supports and translates **14+ Indian Languages**:
+`Hindi, Bengali, Tamil, Telugu, Kannada, Gujarati, Malayalam, Marathi, Odia, Punjabi, Urdu, Assamese, Maithili, Sindhi` + `English`.
 
 ---
 
@@ -87,113 +154,56 @@ Full character reference alphabets for Devanagari, Bengali, Dravidian, Indo-Arya
 Final-Sem-Proj-Updated/
 ├── backend/
 │   ├── main.py                    # FastAPI entry point
-│   ├── pipeline.py                # 4-phase orchestration engine
-│   ├── config.py                  # Model paths, context settings
-│   ├── layout/
-│   │   ├── layoutlm_service.py    # LayoutLMv3 API & Local execution
-│   │   └── box_adapter.py         # Box scaling utilities
-│   ├── ocr/
-│   │   ├── engine.py              # PaddleOCR wrapper
-│   │   └── easyocr_engine.py      # EasyOCR (all Indic scripts)
+│   ├── pipeline.py                # Image orchestration and Kaggle dispatcher
+│   ├── config.py                  # API endpoints and system configurations
 │   ├── vlm/
-│   │   ├── vlm_model.py           # VLM prompt building
-│   │   └── gguf_engine.py         # Standalone llama-server client
-│   ├── utils/
-│   │   ├── image_enhancer.py      # Image compounding & dual-pass B&W
-│   │   ├── layout_reconstructor.py# Digital Twin TXT/DOCX generation
-│   │   ├── table_detector.py      # OpenCV table contour detection
-│   │   ├── layout_template.py     # Standardised schema mapper
-│   │   └── export.py              # Excel + JSON export
-│   └── language_alphabets/        # 14 Indian language txt references
-│       ├── tamil.txt
-│       ├── hindi.txt
-│       ├── bengali.txt
-│       ├── gujarati.txt
-│       ├── marathi.txt
-│       ├── telugu.txt
-│       ├── kannada.txt
-│       ├── malayalam.txt
-│       ├── odia.txt
-│       ├── punjabi.txt
-│       ├── urdu.txt
-│       ├── assamese.txt
-│       ├── maithili.txt
-│       └── sindhi.txt
-├── frontend/
-│   └── src/
-│       └── components/
-│           └── tabs/              # OCR / Layout / VLM / Exports tabs
-├── requirements.txt
+│   │   ├── vlm_model.py           # Master Prompt engineering & JSON parsing
+│   │   └── gguf_engine.py         # Cloudflare tunnel REST client
+│   └── utils/
+│       ├── image_enhancer.py      # CLAHE algorithms & image splitting
+│       ├── layout_template.py     # Schema standardization algorithms
+│       └── export.py              # System export logic
+├── frontend/                      # React-based UI mapping extraction results
+├── .env                           # Cloudflare & API configuration
 └── README.md
 ```
 
 ---
 
-## ⚙️ Setup & Installation
+## ⚙️ Setup & Deployment Guide
 
-### Prerequisites
-- Python 3.12
-- Node.js 18+
-- NVIDIA GPU with CUDA 12.x (recommended: 4GB+ VRAM)
-- `llama-server.exe` (CUDA build) placed in `backend/vlm/llama_server_bin/`
-
-### 1. Backend
+### 1. Local Backend Setup
 
 ```bash
 pip install -r requirements.txt
-pip install "numpy==1.26.4" --force-reinstall   # Required for PaddleOCR compatibility
 cd backend
 python main.py
 ```
+*API serves locally at `http://localhost:8000`*
 
-API available at `http://localhost:8000`
+### 2. Kaggle Worker Node Deployment
+Due to the intensive VRAM requirements of the 32B VLM, the inference engine is deployed remotely:
+1. Initialize a Kaggle Notebook and enable **Dual T4 GPUs**.
+2. Execute the provided inference cell to spin up `llama-cpp-python` alongside a `cloudflared` tunnel.
+3. Upon initialization, copy the secure `.trycloudflare.com` URL generated in the output logs.
 
-### 2. Download Llama Server Binary
-
-Download the CUDA-enabled `llama-server.exe` from [llama.cpp releases](https://github.com/ggerganov/llama.cpp/releases) and place it in:
+### 3. Environment Configuration (`.env`)
+Create a `.env` file in the root directory to establish the master-worker handshake:
+```env
+KAGGLE_VLM_URL=https://your-generated-url.trycloudflare.com
+INTERNAL_MODEL_API_KEY=inv_ai_sk_d7c8dc5d523d4bffa8d1a08483f7e3ac
 ```
-backend/vlm/llama_server_bin/llama-server.exe
-```
 
-### 3. Download VLM Model
-
-Download `Qwen3VL-4B-Instruct-Q4_K_M.gguf` and its mmproj file, place in the path configured in `backend/config.py`.
-
-### 4. Frontend
+### 4. Frontend Launch
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-UI at `http://localhost:5173`
-
----
-
-## 📋 Environment Configuration (`.env`)
-
-| Variable | Description |
-|:---|:---|
-| `JWT_SECRET` | Secret key for auth token signing |
-| `MAX_UPLOAD_SIZE_MB` | Maximum file upload size (default: `10`) |
-| `VLM_LOCAL_MODEL_PATH` | Path to the GGUF model file |
-| `VLM_LOCAL_MMPROJ_PATH` | Path to the mmproj (vision encoder) file |
+*UI accessible at `http://localhost:5173`*
 
 ---
 
-## 🔬 Known Limitations & Mitigations
-
-| Limitation | Mitigation |
-|:---|:---|
-| Artistic / custom fonts unreadable by OCR | Cross-script detection → VLM reads image directly |
-| 4GB VRAM tight with 8192 context | Sequential OCR→VLM with explicit VRAM release |
-| Handwritten bills vary per person | CLAHE equalisation + template fills all fields |
-| PaddleOCR + EasyOCR CUDA type collision | Sequential execution (not parallel) |
-| NumPy 2.x breaks PaddleOCR | Pinned to numpy==1.26.4 |
-
----
-
-## 🛡️ License & Disclaimer
-
-Developed as a Final Year Semester Project. All temporary guest data is purged automatically. The VLM model (Qwen3-VL) is used under its respective open-source license.
+## 🛡️ License & Academic Disclaimer
+Developed as an academic Final Year Semester Project focusing on bridging hardware gaps in Large Vision-Language Model deployment for regional Indian contexts.

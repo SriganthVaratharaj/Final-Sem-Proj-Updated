@@ -1,4 +1,5 @@
 const SOURCE_META = {
+  kaggle_remote_vlm: { label: 'Kaggle Qwen2.5-VL-32B (Remote Tunnel)', tier: '30GB VRAM' },
   llava_local_with_ocr_hint: { label: 'Local CUDA Qwen-VL (with OCR Hint)', tier: 'GPU' },
   llava_local_only: { label: 'Local CUDA Qwen-VL (Visual Only)', tier: 'GPU' },
   image_only_fallback: { label: 'Local Fallback (Visual Only)', tier: 'GPU' },
@@ -35,7 +36,12 @@ export default function VlmTab({ result }) {
           <div className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">VLM Inference Engine</div>
           <p className="text-sm text-gray-900 font-semibold mt-0.5">{meta.label}</p>
         </div>
-        {meta.tier && <span className="tag-indigo">{meta.tier}</span>}
+        <div className="flex gap-2">
+          {rawFields.metadata?.detected_language && (
+             <span className="tag-orange">Lang: {rawFields.metadata.detected_language}</span>
+          )}
+          {meta.tier && <span className="tag-indigo">{meta.tier}</span>}
+        </div>
       </div>
 
       {/* Standardized Template Section */}
@@ -56,35 +62,38 @@ export default function VlmTab({ result }) {
         </div>
       </div>
 
-      {/* Raw Extraction Section (Hidden if empty) */}
+      {/* Raw Extraction Section */}
       {Object.entries(rawFields).length > 0 && (
-        <div className="opacity-80 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+        <div className="opacity-95 transition-all">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-4 w-1 bg-gray-400 rounded-full"></div>
-            <h3 className="text-sm font-bold text-gray-600">Raw Model Extraction</h3>
+            <h3 className="text-sm font-bold text-gray-600">Spatial OCR Reconstructions</h3>
           </div>
-          {rawFields.full_extraction ? (
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-2">
-              <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
-                {rawFields.full_extraction}
-              </pre>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {Object.entries(rawFields).map(([k, v]) => (
-                <FieldCard
-                  key={k}
-                  label={k.replace(/_/g, ' ')}
-                  value={v}
-                />
-              ))}
-            </div>
-          )}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
+            {rawFields.full_extraction && (
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Native Script Output</h4>
+                <pre className="text-[11px] text-gray-800 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
+                  {rawFields.full_extraction}
+                </pre>
+              </div>
+            )}
+            
+            {rawFields.english_extraction && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h4 className="text-xs font-bold text-blue-600 mb-2 uppercase tracking-wide">English Translation Output</h4>
+                <pre className="text-[11px] text-blue-900 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
+                  {rawFields.english_extraction}
+                </pre>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       <div className="glass-light p-4 text-[11px] text-gray-500 italic leading-relaxed border-t border-gray-100">
-        Local Qwen-VL model is used with CUDA acceleration. The template mapper standardizes output for consistent accounting exports.
+        Using Distributed Architecture: Lightweight layout passes run locally, while the heavy 32B semantic extraction runs securely on Kaggle Cloud.
       </div>
     </div>
   )

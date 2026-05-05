@@ -115,11 +115,11 @@ def _load_gguf_model(model_type="qwen"):
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         )
 
-    # Wait for server to be ready (up to 90s — Q4_K_M loads slower than IQ2_M)
-    for _ in range(180):
+    # Wait for server to be ready (up to 300s)
+    for _ in range(600):
         time.sleep(0.5)
         try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=5)
             logger.info(f"[gguf] {model_type.upper()} Server ONLINE on port {port}.")
             _llama_client = StandaloneLlamaClient(port=port)
             _llama_client.loaded_model = model_type
@@ -130,10 +130,12 @@ def _load_gguf_model(model_type="qwen"):
     logger.error(f"[gguf] {model_type.upper()} server failed to start within timeout.")
     return None
 
-
-    # ── REMOTE KAGGLE VLM ROUTING ─────────────────────────────────────────────
+def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_type: str = "qwen") -> str:
+    """Central entry point for VLM inference (Routes to Kaggle if URL is set, else Local)."""
+    # ── REMOTE KAGGLE VLM ROUTING (ASYNCHRONOUS POLLING) ──────────────────────
     if KAGGLE_VLM_URL and KAGGLE_VLM_URL.strip():
-        logger.info("[gguf] Routing request to remote Kaggle VLM: %s", KAGGLE_VLM_URL)
+        base_url = KAGGLE_VLM_URL.rstrip('/')
+        logger.info("[gguf] Starting async extraction on Kaggle: %s", base_url)
         try:
             b64 = base64.b64encode(image_bytes).decode("utf-8")
             payload = json.dumps({
@@ -141,10 +143,36 @@ def _load_gguf_model(model_type="qwen"):
                 "prompt": prompt
             }).encode('utf-8')
             
-            req = urllib.request.Request(f"{KAGGLE_VLM_URL.rstrip('/')}/extract", data=payload, headers={'Content-Type': 'application/json'})
+            # 1. Start the job (Increased timeout to 300s for large image uploads)
+            req = urllib.request.Request(f"{base_url}/extract", data=payload, headers={'Content-Type': 'application/json'})
             with urllib.request.urlopen(req, timeout=300) as response:
-                result = json.loads(response.read().decode())
-                return result.get("data", "ERROR: Empty response from Kaggle")
+                job_id = json.loads(response.read().decode()).get("job_id")
+            
+            if not job_id:
+                return "ERROR: Failed to start remote job"
+
+            # 2. Poll for the result
+            logger.info("[gguf] Job started (ID: %s). Polling for result...", job_id)
+            max_retries = 240 # Total 20 minutes (5s * 240)
+            for i in range(max_retries):
+                time.sleep(5) # Wait 5 seconds
+                try:
+                    status_req = urllib.request.Request(f"{base_url}/status/{job_id}")
+                    with urllib.request.urlopen(status_req, timeout=20) as status_res:
+                        res_data = json.loads(status_res.read().decode())
+                        
+                        if res_data.get("status") == "completed":
+                            logger.info("[gguf] Extraction Complete!")
+                            return res_data.get("data")
+                        elif res_data.get("status") == "error":
+                            return f"ERROR: Remote VLM failed: {res_data.get('message')}"
+                        
+                        logger.info("[gguf] ...still processing (%ds)...", (i+1)*5)
+                except Exception as poll_e:
+                    logger.warning("[gguf] Polling attempt failed (retrying): %s", poll_e)
+            
+            return "ERROR: Remote VLM timed out after polling limit"
+            
         except Exception as e:
             logger.error("[gguf] Remote Kaggle request failed: %s", e)
             return f"ERROR: Remote VLM failed: {e}"

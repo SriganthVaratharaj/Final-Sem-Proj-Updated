@@ -98,7 +98,7 @@ VLM_LOCAL_MODEL_ID: str = os.getenv(
 )
 VLM_LOCAL_MAX_NEW_TOKENS: int = int(os.getenv("VLM_LOCAL_MAX_NEW_TOKENS", "256"))
 
-# ── GGUF Paths ────────────────────────────────────────────────────────────────
+# ── GGUF Paths (LEGACY LOCAL FALLBACK) ────────────────────────────────────────
 # English/Latin invoices → Qwen3 VL 4B Q4_K_M (fast, accurate for Latin scripts)
 LLAVA_GGUF_PATH = HF_MODELS_DIR / "Qwen3VL-4B-Instruct-Q4_K_M.gguf"
 LLAVA_MMPROJ_PATH = HF_MODELS_DIR / "mmproj-Qwen3VL-4B-Instruct-F16.gguf"
