@@ -54,13 +54,37 @@ async def upload(files: List[UploadFile] = File(...), user_email: str = Depends(
 
 @app.get("/api/stream/{job_id}")
 async def stream(job_id: str):
-    if job_id not in _job_store: raise HTTPException(404)
-    job = _job_store.pop(job_id)
+    if job_id not in _job_store:
+        raise HTTPException(404)
+    job = _job_store[job_id]
     async def gen():
-        for info in job["files"]:
-            res = await run_pipeline(info["path"], info["bytes"], info["name"], user_email=job["user_email"], session_id=job_id)
-            yield f"data: {json.dumps({'event': 'result', 'data': res}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'event': 'done'})}\n\n"
+        try:
+            for idx, info in enumerate(job["files"], start=1):
+                # Emit stage event before processing each segment
+                stage_msg = json.dumps({
+                    "event": "stage",
+                    "image": idx,
+                    "stage": f"Processing segment {idx}/{len(job['files'])}"
+                }, ensure_ascii=False)
+                yield f"data: {stage_msg}\n\n"
+                # Run pipeline for this segment
+                res = await run_pipeline(
+                    info["path"], info["bytes"], info["name"],
+                    user_email=job["user_email"], session_id=job_id
+                )
+                # Emit result event with image index
+                result_msg = json.dumps({
+                    "event": "result",
+                    "image": idx,
+                    "data": res
+                }, ensure_ascii=False)
+                yield f"data: {result_msg}\n\n"
+            # Done event
+            done_msg = json.dumps({"event": "done"}, ensure_ascii=False)
+            yield f"data: {done_msg}\n\n"
+        finally:
+            # Cleanup job entry after streaming finishes (whether success or error)
+            _job_store.pop(job_id, None)
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 @app.post("/api/filter")
