@@ -106,14 +106,29 @@ def _normalize_key(key: str) -> str:
     return key.lower().strip().replace(" ", "_").replace("-", "_").replace(".", "")
 
 
+def _flatten_dict(d: dict[str, Any], parent_key: str = '') -> dict[str, Any]:
+    items: list[tuple[str, Any]] = []
+    if isinstance(d, list):
+        return {parent_key: d}
+    for k, v in d.items():
+        new_key = f"{parent_key}_{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(_flatten_dict(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
 def _find_value(raw: dict[str, Any], aliases: list[str]) -> Any:
     """
     Search the raw extraction dict for a value matching any of the given aliases.
     Handles nested dicts and case-insensitive keys.
     Returns the first match found, or None.
     """
+    if not isinstance(raw, dict): return None
+    flat_raw = _flatten_dict(raw)
+    
     # Build normalized key map
-    norm_map = {_normalize_key(k): v for k, v in raw.items()}
+    norm_map = {_normalize_key(k): v for k, v in flat_raw.items()}
 
     for alias in aliases:
         norm_alias = _normalize_key(alias)

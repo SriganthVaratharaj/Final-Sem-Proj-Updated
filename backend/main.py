@@ -74,6 +74,12 @@ async def filter_api(payload: dict):
 @app.get("/api/results")
 async def history(): return {"results": await list_results()}
 
+@app.delete("/api/cleanup/{job_id}")
+async def cleanup_job(job_id: str):
+    if job_id in _job_store:
+        del _job_store[job_id]
+    return {"status": "ok", "message": "Cleanup successful"}
+
 @app.get("/")
 @app.get("/{path:path}")
 async def serve(path: str = ""):

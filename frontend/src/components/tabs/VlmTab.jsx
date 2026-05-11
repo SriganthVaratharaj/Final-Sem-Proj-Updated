@@ -10,14 +10,27 @@ const SOURCE_META = {
 }
 
 function FieldCard({ label, value }) {
-  const notFound = !value || value === 'Not found' || value === 'null' || value === '—'
+  const notFound = !value || value === 'Not found' || value === 'null' || value === '—' || (Array.isArray(value) && value.length === 0)
+
+  let displayValue = value;
+  if (!notFound && typeof value === 'object') {
+    displayValue = JSON.stringify(value, null, 2);
+  }
 
   return (
-    <div className="glass-light p-3 flex flex-col gap-1 border-l-2 border-primary/20">
+    <div className="glass-light p-3 flex flex-col gap-1 border-l-2 border-primary/20 overflow-hidden">
       <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">{label}</span>
-      <span className={`text-sm font-medium ${notFound ? 'text-gray-400 italic' : 'text-gray-900'}`}>
-        {notFound ? 'Not detected' : value}
-      </span>
+      {notFound ? (
+        <span className="text-sm font-medium text-gray-400 italic">Not detected</span>
+      ) : (
+        <span className="text-sm font-medium text-gray-900 break-words">
+          {typeof value === 'object' ? (
+            <pre className="text-[10px] bg-white/60 p-1.5 rounded mt-1 overflow-x-auto border border-gray-100">{displayValue}</pre>
+          ) : (
+            displayValue
+          )}
+        </span>
+      )}
     </div>
   )
 }

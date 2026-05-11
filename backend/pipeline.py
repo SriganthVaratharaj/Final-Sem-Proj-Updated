@@ -31,6 +31,8 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
         combined_vlm_parts = []
         combined_twin_parts = []
         final_dominant_lang = "latin"
+        merged_raw_fields = {}
+        first_source = "unavailable"
         
         for seg_idx, seg_bytes in enumerate(image_segments):
             logger.info("[pipeline] Processing Image Segment %d/%d", seg_idx+1, len(image_segments))
@@ -44,24 +46,31 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
             vlm_res = await asyncio.to_thread(
                 vlm_extract_all, vlm_bytes, correction_rules, "", original_filename
             )
+            
+            if seg_idx == 0:
+                first_source = vlm_res.get("_source", "unavailable")
 
-            vlm_text = vlm_res.get("fields", {}).get("full_extraction", "")
+            fields = vlm_res.get("fields", {})
+            
+            # Merge fields (prefer non-empty values)
+            for k, v in fields.items():
+                if k not in merged_raw_fields or (v and not merged_raw_fields[k]):
+                    merged_raw_fields[k] = v
+
+            vlm_text = fields.get("full_extraction", "")
             if not vlm_text: vlm_text = f"Extraction failed for segment {seg_idx+1}"
             
-            # The Kaggle VLM directly generates the spatial layout twin text
-            twin_text = vlm_res.get("fields", {}).get("english_extraction", "")
+            twin_text = fields.get("english_extraction", "")
             
             combined_vlm_parts.append(vlm_text)
             combined_twin_parts.append(twin_text)
 
         # ── Result Combination ────────────────────────────────────────────────
-        final_vlm = "\n\n---\n\n### SECOND BILL ###\n\n".join(combined_vlm_parts) if len(combined_vlm_parts) > 1 else combined_vlm_parts[0]
-        final_twin = "\n\n---\n\n".join(combined_twin_parts)
+        final_vlm = "\n\n---\n\n### SECOND BILL ###\n\n".join(combined_vlm_parts) if len(combined_vlm_parts) > 1 else (combined_vlm_parts[0] if combined_vlm_parts else "")
+        final_twin = "\n\n---\n\n".join(combined_twin_parts) if combined_twin_parts else ""
 
-        # We use the FIRST segment's fields for structured output
-        first_res = vlm_res if image_segments else {"fields": {}, "_source": "unavailable"}
-        raw_fields = first_res.get("fields", {})
-        source = first_res.get("_source", "unavailable")
+        raw_fields = merged_raw_fields
+        source = first_source
         final_dominant_lang = raw_fields.get("metadata", {}).get("detected_language", "unknown")
         
         from backend.utils.layout_template import map_to_standard_template

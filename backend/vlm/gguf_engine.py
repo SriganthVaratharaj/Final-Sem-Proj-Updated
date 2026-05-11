@@ -14,7 +14,7 @@ from pathlib import Path
 from backend.config import (
     LLAVA_GGUF_PATH, LLAVA_MMPROJ_PATH,
     MINICPM_GGUF_PATH, MINICPM_MMPROJ_PATH,
-    VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY, KAGGLE_VLM_URL
+    VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY
 )
 
 logger = logging.getLogger(__name__)
@@ -130,11 +130,20 @@ def _load_gguf_model(model_type="qwen"):
     logger.error(f"[gguf] {model_type.upper()} server failed to start within timeout.")
     return None
 
+def _get_dynamic_kaggle_url():
+    import os
+    from dotenv import load_dotenv
+    from pathlib import Path
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path, override=True)
+    return os.getenv("KAGGLE_VLM_URL", "")
+
 def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_type: str = "qwen") -> str:
     """Central entry point for VLM inference (Routes to Kaggle if URL is set, else Local)."""
     # ── REMOTE KAGGLE VLM ROUTING (ASYNCHRONOUS POLLING) ──────────────────────
-    if KAGGLE_VLM_URL and KAGGLE_VLM_URL.strip():
-        base_url = KAGGLE_VLM_URL.rstrip('/')
+    kaggle_url = _get_dynamic_kaggle_url()
+    if kaggle_url and kaggle_url.strip():
+        base_url = kaggle_url.rstrip('/')
         logger.info("[gguf] Starting async extraction on Kaggle: %s", base_url)
         try:
             b64 = base64.b64encode(image_bytes).decode("utf-8")

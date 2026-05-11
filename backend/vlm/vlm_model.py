@@ -15,18 +15,21 @@ logger = logging.getLogger(__name__)
 MASTER_PROMPT_TEMPLATE = """
 You are an End-to-End Layout-Aware Visual OCR AI. Analyze the image and perform these strict tasks:
 
-Step 1: Identify if the image is an 'Invoice', 'Receipt', or a 'General Document'.
-Step 2: Identify the primary native language of the text.
+Step 1: Identify ALL documents in the image. If there are multiple separate bills or duplicates, extract all of them.
+Step 2: Identify the primary native language(s).
 
 {extraction_instruction}
+Step 3.5 (Structure): For any table, grid, or box structure, you MUST use Markdown Table format (| Column |) to preserve the visual layout.
 
 {reference_alphabets}
 
-Step 4 (Format): You MUST return the final output STRICTLY as a single JSON object in the exact structure below. Do NOT add conversational text. Do NOT wrap in markdown code blocks.
+Step 4 (Format): You MUST return the final output STRICTLY as a single JSON object. Do NOT add conversational text. Do NOT wrap in markdown code blocks.
+IMPORTANT: Use standard, flat English keys (e.g., "vendor_name", "total_amount") for BOTH native_json and english_json. Do NOT use nested objects inside native_json. The keys must be English, only the values should be in the native language.
 {{
   "metadata": {{
-      "classification": "Invoice, Receipt, or Document",
-      "detected_language": "Language Name"
+      "classification": "Identify all documents found",
+      "detected_language": "Language Name",
+      "document_count": "Number of docs found"
   }},
   "native_json": {{ ... }}, 
   "english_json": {{ ... }}, 
@@ -74,12 +77,21 @@ def _clean_output(text: str) -> dict | None:
             "_source": "vlm_raw_fallback"
         }
 
+def _get_dynamic_kaggle_url():
+    import os
+    from dotenv import load_dotenv
+    from pathlib import Path
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    load_dotenv(dotenv_path=env_path, override=True)
+    return os.getenv("KAGGLE_VLM_URL", "")
+
 # ── OPTIMIZATION: Skip language scan for remote Kaggle to prevent browser timeouts ──
 def _quick_language_scan(image_bytes: bytes, model_type: str = "minicpm") -> str:
     """
     Lightweight VLM call to detect invoice language before the full extraction.
     """
-    if KAGGLE_VLM_URL and KAGGLE_VLM_URL.strip():
+    kaggle_url = _get_dynamic_kaggle_url()
+    if kaggle_url and kaggle_url.strip():
         logger.info("[vlm] Remote Kaggle detected. Skipping language scan pass for speed.")
         return "mixed"
     try:
@@ -118,27 +130,6 @@ _LANG_SPECIFIC_RULES: dict[str, str] = {
     "english":   "",
     "mixed":     "The invoice contains multiple languages/scripts. Extract all visible text.",
 }
-
-
-def _quick_language_scan(image_bytes: bytes, model_type: str = "minicpm") -> str:
-    """
-    Lightweight VLM call to detect invoice language before the full extraction.
-    """
-    try:
-        raw = query_local_llava(image_bytes, _LANG_SCAN_PROMPT.strip(), model_type=model_type)
-        if not raw:
-            return "mixed"
-        # Clean and normalize
-        lang = raw.strip().lower().split()[0] if raw.strip() else "mixed"
-        lang = re.sub(r'[^a-z]', '', lang)  # letters only
-        if lang not in _LANG_SPECIFIC_RULES:
-            lang = "mixed"
-        logger.info("[vlm] Language scan result: '%s'", lang)
-        return lang
-    except Exception as e:
-        logger.warning("[vlm] Language scan failed: %s", e)
-        return "mixed"
-
 
 def _strip_hallucinations(text: str) -> str:
     """Detect and remove hallucinated repeated patterns from VLM output."""
@@ -300,7 +291,7 @@ def _extract_single_segment(image_bytes: bytes, filename: str = "") -> dict:
         return {
             "fields": final_fields,
             "is_invoice": True,
-            "_source": "kaggle_remote_vlm" if "trycloudflare.com" in __import__("backend.config").config.KAGGLE_VLM_URL else "local_vlm"
+            "_source": "kaggle_remote_vlm" if "trycloudflare.com" in _get_dynamic_kaggle_url() else "local_vlm"
         }
     except Exception as e:
         logger.error(f"VLM Error: {e}")
