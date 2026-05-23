@@ -25,7 +25,7 @@ run_git(["add", "-A"])
 run_git(["add", "-f", "backend/cloudflared.exe"])
 
 print("\n=== Committing ===")
-run_git(["commit", "-m", "Optimize mobile scanner, touch cropping, layout translation mapping, heartbeats, and database exports"])
+run_git(["commit", "-m", "Fix VLM remote URL loading, API URL fallback on Vercel, and auto-escape MONGO_URI credentials"])
 
 print("\n=== Pushing to GitHub ===")
 # Get current branch

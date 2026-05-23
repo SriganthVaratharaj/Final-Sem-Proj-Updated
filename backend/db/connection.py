@@ -16,7 +16,27 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-MONGO_URI: str = get_config_value("MONGO_URI", "mongodb://localhost:27017")
+import urllib.parse
+
+def sanitize_mongo_uri(uri: str) -> str:
+    if not uri or "://" not in uri:
+        return uri
+    scheme, rest = uri.split("://", 1)
+    if "@" not in rest:
+        return uri
+    # Split by the last '@' which separates credentials from the host
+    parts = rest.rsplit("@", 1)
+    creds, host_part = parts[0], parts[1]
+    if ":" in creds:
+        username, password = creds.split(":", 1)
+        encoded_user = urllib.parse.quote_plus(urllib.parse.unquote(username))
+        encoded_pass = urllib.parse.quote_plus(urllib.parse.unquote(password))
+        return f"{scheme}://{encoded_user}:{encoded_pass}@{host_part}"
+    else:
+        encoded_user = urllib.parse.quote_plus(urllib.parse.unquote(creds))
+        return f"{scheme}://{encoded_user}@{host_part}"
+
+MONGO_URI: str = sanitize_mongo_uri(get_config_value("MONGO_URI", "mongodb://localhost:27017"))
 MONGO_DB_NAME: str = get_config_value("MONGO_DB_NAME", "invoice_ai")
 
 # ── Async client (Motor) — used inside FastAPI async routes ───────────────────
