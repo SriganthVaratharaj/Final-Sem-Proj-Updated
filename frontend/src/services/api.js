@@ -1,6 +1,13 @@
 import axios from 'axios'
 
-const BASE = '/api'
+const API_URL = import.meta.env.VITE_API_URL || ''
+const BASE = `${API_URL}/api`
+
+export const getFileUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_URL}${url}`
+}
 
 export const uploadFiles = async (files, token = null) => {
   const form = new FormData()

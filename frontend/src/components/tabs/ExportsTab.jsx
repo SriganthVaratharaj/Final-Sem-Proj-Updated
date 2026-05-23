@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { deleteHistoryItem, fetchHistory } from '../../services/api'
+import { deleteHistoryItem, fetchHistory, getFileUrl } from '../../services/api'
 
 function DownloadBtn({ href, label }) {
   const hasLink = href && href !== ''
@@ -66,7 +66,7 @@ export default function ExportsTab({ result }) {
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Download Exports</h3>
         <div className="grid sm:grid-cols-2 gap-2">
-          <DownloadBtn href={result.json_output_url} label="JSON Data (Structured Fields)" />
+          <DownloadBtn href={getFileUrl(result.json_output_url)} label="JSON Data (Structured Fields)" />
         </div>
       </div>
 
