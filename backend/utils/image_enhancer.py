@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────────────────
 MIN_SIDE_PX   = 800    # Upscale if shorter side < this
-MAX_SIDE_PX   = 2000   # Never exceed this (memory + token budget)
+MAX_SIDE_PX   = 1200   # Never exceed this (memory + token budget)
 JPEG_QUALITY  = 88     # Output quality for VLM (keep detail)
 OCR_JPEG_Q    = 92     # OCR variant: slightly higher = cleaner edges
 

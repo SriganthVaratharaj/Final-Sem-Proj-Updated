@@ -74,7 +74,74 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
         final_dominant_lang = raw_fields.get("metadata", {}).get("detected_language", "unknown")
         
         from backend.utils.layout_template import map_to_standard_template
-        template_fields = map_to_standard_template(raw_fields)
+        # Merge english_json on top of native raw_fields (so English values override native ones, with full fallbacks)
+        english_fields = {}
+        if isinstance(raw_fields, dict):
+            english_fields = dict(raw_fields)
+            english_json = raw_fields.get("english_json", {})
+            if isinstance(english_json, dict):
+                for k, v in english_json.items():
+                    if v and str(v).strip() and str(v).strip().lower() not in ["", "null", "none"]:
+                        english_fields[k] = v
+            # Set full_extraction to english_extraction if available, for table items parsing from the English layout
+            if raw_fields.get("english_extraction"):
+                english_fields["full_extraction"] = raw_fields["english_extraction"]
+        else:
+            english_fields = raw_fields
+
+        template_fields = map_to_standard_template(english_fields)
+
+        # ── Export File Generation ───────────────────────────────────────────
+        from backend.utils.export import export_to_excel, save_layout_json
+        from backend.utils.report_generator import generate_structured_report, save_structured_report
+
+        # 1. Save Excel sheet
+        excel_path = export_to_excel(template_fields, user_output_dir, stem)
+        excel_url = f"/outputs/{user_email or 'guest'}/{excel_path.name}"
+
+        # 2. Save JSON output
+        full_payload = {
+            "status": "success",
+            "file_name": original_filename,
+            "document_type": "invoice",
+            "extracted_data": template_fields,
+            "document_layout_analysis": {
+                "layout_regions": [],
+                "detected_blocks": []
+            }
+        }
+        json_path = save_layout_json(full_payload, user_output_dir, stem)
+        json_url = f"/outputs/{user_email or 'guest'}/{json_path.name}"
+
+        # 3. Save Notepad-style structured report
+        report_text = generate_structured_report(full_payload)
+        txt_path = save_structured_report(report_text, user_output_dir, stem)
+        txt_url = f"/outputs/{user_email or 'guest'}/{txt_path.name}"
+
+        # 4. Save Digital Twin text file
+        twin_txt_path = user_output_dir / f"{stem}_digital_twin.txt"
+        twin_txt_path.write_text(final_twin, encoding="utf-8")
+        twin_txt_url = f"/outputs/{user_email or 'guest'}/{twin_txt_path.name}"
+
+        # 5. Save Digital Twin word document (fallback/mock docx)
+        twin_docx_path = user_output_dir / f"{stem}_digital_twin.docx"
+        twin_docx_path.write_text(final_twin, encoding="utf-8")
+        twin_docx_url = f"/outputs/{user_email or 'guest'}/{twin_docx_path.name}"
+
+        # 6. Save to Database
+        from db.repository import save_result
+        db_res = {
+            "image_name": original_filename,
+            "document_type": "invoice",
+            "ocr_texts": [final_vlm],
+            "vlm_fields": raw_fields,
+            "vlm_source": source,
+            "excel_file_url": excel_url,
+            "json_output_url": json_url,
+            "text_report_url": txt_url,
+            "status": "success"
+        }
+        db_id = await save_result(db_res)
 
         return {
             "status": "success",
@@ -83,6 +150,12 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
             "template_fields": template_fields,
             "vlm_source": source,
             "digital_twin_content": final_twin,
+            "excel_file_url": excel_url,
+            "json_output_url": json_url,
+            "digital_twin_txt_url": twin_txt_url,
+            "digital_twin_docx_url": twin_docx_url,
+            "text_report_preview": report_text,
+            "db_id": db_id,
             "metadata": {
                 "segments_processed": len(image_segments),
                 "dominant_language": final_dominant_lang

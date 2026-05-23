@@ -24,15 +24,16 @@ Step 3.5 (Structure): For any table, grid, or box structure, you MUST use Markdo
 {reference_alphabets}
 
 Step 4 (Format): You MUST return the final output STRICTLY as a single JSON object. Do NOT add conversational text. Do NOT wrap in markdown code blocks.
-IMPORTANT: Use standard, flat English keys (e.g., "vendor_name", "total_amount") for BOTH native_json and english_json. Do NOT use nested objects inside native_json. The keys must be English, only the values should be in the native language.
+### CRITICAL: YOUR ENTIRE RESPONSE MUST BE A SINGLE VALID JSON OBJECT. NO MARKDOWN, NO EXPLANATION, NO PREFACE. ###
+IMPORTANT: Use standard, flat English keys (e.g., "vendor_name", "invoice_number", "total_amount") for BOTH native_json and english_json. Do NOT use nested objects inside native_json. The keys must be English, only the values should be in the native language.
 {{
   "metadata": {{
       "classification": "Identify all documents found",
       "detected_language": "Language Name",
       "document_count": "Number of docs found"
   }},
-  "native_json": {{ ... }}, 
-  "english_json": {{ ... }}, 
+  "native_json": {{ "vendor_name": "...", "invoice_number": "...", "total_amount": "...", "items": "Markdown Table", "...": "..." }}, 
+  "english_json": {{ "vendor_name": "Translated", "...": "..." }}, 
   "native_layout_text": "...", 
   "english_layout_text": "..." 
 }}
@@ -54,15 +55,29 @@ def _is_unsupported_script(text: str) -> bool:
 
 def _clean_output(text: str) -> dict | None:
     if not text: return None
-    # Strip markdown code fences if model hallucinated them
-    text = text.replace("```json", "").replace("```", "").strip()
+    # Pre-clean: remove potential markdown garbage
+    text = re.sub(r'```(?:json)?\s*', '', text)
+    text = text.replace('```', '').strip()
+    
     try:
-        # Try to find the first '{' and last '}' to extract JSON
+        # Strategy 1: Find the largest JSON-like block
         start = text.find('{')
         end = text.rfind('}')
         if start != -1 and end != -1:
-            text = text[start:end+1]
+            candidate = text[start:end+1]
+            # Heuristic repair: fix common trailing commas before closing braces
+            candidate = re.sub(r',\s*([\]}])', r'\1', candidate)
+            try:
+                parsed = json.loads(candidate)
+                return {
+                    "fields": parsed,
+                    "is_comprehensive": True,
+                    "_source": "master_vlm_json"
+                }
+            except:
+                pass
         
+        # Strategy 2: Try parsing the whole thing if Strategy 1 failed
         parsed = json.loads(text)
         return {
             "fields": parsed,
@@ -71,6 +86,7 @@ def _clean_output(text: str) -> dict | None:
         }
     except Exception as e:
         logger.error("[vlm] JSON parsing failed: %s", e)
+        logger.debug("[vlm] Raw text that failed: %s", text[:500])
         return {
             "full_extraction": text.strip(),
             "is_comprehensive": False,
@@ -251,7 +267,12 @@ def _extract_single_segment(image_bytes: bytes, filename: str = "") -> dict:
         lang_rule = _LANG_SPECIFIC_RULES.get(detected_lang, "")
         ref_alphabets = _load_reference_alphabets(detected_lang)
 
-        ext_instr = "Step 3 (Extraction): Perform a full structured extraction. Capture all key-value pairs, tables, and paragraphs. Preserve the logical layout."
+        ext_instr = (
+            "Step 3 (Extraction): Perform a full structured extraction. Capture all key-value pairs, tables, and paragraphs. Preserve the logical layout.\n"
+            "Step 3.1 (Translation & Transliteration): Translate all extracted values, text blocks, names, addresses, and line items from their native language to English in both `english_json` and `english_layout_text`. "
+            "For example, if the vendor name is written in Tamil/Hindi/Telugu/etc., you must write the original script in `native_json` / `native_layout_text` and its English translation / transliteration in `english_json` / `english_layout_text`. "
+            "Ensure that `english_json` contains the exact same keys as `native_json`, but with all values translated/transliterated to English. Do not leave `english_json` empty."
+        )
         
         prompt = MASTER_PROMPT_TEMPLATE.format(
             extraction_instruction=ext_instr,
@@ -271,20 +292,31 @@ def _extract_single_segment(image_bytes: bytes, filename: str = "") -> dict:
 
         master_data = parsed_result["fields"]
         
-        # Save debug
+        # Save debug as early as possible
         try:
             from backend.config import OUTPUT_DIR
             debug_path = OUTPUT_DIR / "debug" / image_id
             debug_path.mkdir(parents=True, exist_ok=True)
             for k, suffix in [("native_json", ".json"), ("english_json", "_en.json"), ("native_layout_text", ".txt"), ("english_layout_text", "_en.txt")]:
                 val = master_data.get(k, {})
+                # If the key is missing but the master_data itself has keys that look like fields,
+                # it means the model didn't wrap it in native_json.
+                if not val and k == "native_json" and len(master_data) > 3:
+                     val = {mk: mv for mk, mv in master_data.items() if mk not in ["metadata", "native_layout_text", "english_layout_text"]}
+                
                 with open(debug_path / (k + suffix), "w", encoding="utf-8") as f:
                     if suffix == ".json": json.dump(val, f, ensure_ascii=False, indent=4)
                     else: f.write(str(val))
-        except: pass
+        except Exception as de: 
+            logger.debug("[vlm] Debug save failed: %s", de)
 
+        # Map fields with fallback to root if wrapper keys are missing
         final_fields = master_data.get("native_json", {})
-        final_fields["full_extraction"] = master_data.get("native_layout_text", "")
+        if not final_fields and len(master_data) > 3:
+             final_fields = {mk: mv for mk, mv in master_data.items() if mk not in ["metadata", "native_layout_text", "english_layout_text", "english_json"]}
+        
+        final_fields["english_json"] = master_data.get("english_json", {})
+        final_fields["full_extraction"] = master_data.get("native_layout_text", "") or master_data.get("full_extraction", "")
         final_fields["english_extraction"] = master_data.get("english_layout_text", "")
         final_fields["metadata"] = master_data.get("metadata", {})
 

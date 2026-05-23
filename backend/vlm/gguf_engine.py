@@ -17,11 +17,15 @@ from backend.config import (
     VLM_LOCAL_MAX_NEW_TOKENS, VLM_LOCAL_N_CTX, INTERNAL_MODEL_API_KEY
 )
 
+import threading
+
 logger = logging.getLogger(__name__)
 
 # Global state
 _llama_process = None
 _llama_client = None
+_vlm_lock = threading.Lock()  # Serializes requests to prevent simultaneous GPU memory OOMs
+
 
 class StandaloneLlamaClient:
     def __init__(self, port=8080):
@@ -139,6 +143,11 @@ def _get_dynamic_kaggle_url():
     return os.getenv("KAGGLE_VLM_URL", "")
 
 def query_local_llava(image_bytes: bytes, prompt: str, api_key: str = "", model_type: str = "qwen") -> str:
+    """Central entry point for VLM inference with lock serialization."""
+    with _vlm_lock:
+        return _query_local_llava_impl(image_bytes, prompt, api_key, model_type)
+
+def _query_local_llava_impl(image_bytes: bytes, prompt: str, api_key: str = "", model_type: str = "qwen") -> str:
     """Central entry point for VLM inference (Routes to Kaggle if URL is set, else Local)."""
     # ── REMOTE KAGGLE VLM ROUTING (ASYNCHRONOUS POLLING) ──────────────────────
     kaggle_url = _get_dynamic_kaggle_url()

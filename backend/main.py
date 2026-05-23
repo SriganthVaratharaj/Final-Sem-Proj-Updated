@@ -67,11 +67,23 @@ async def stream(job_id: str):
                     "stage": f"Processing segment {idx}/{len(job['files'])}"
                 }, ensure_ascii=False)
                 yield f"data: {stage_msg}\n\n"
-                # Run pipeline for this segment
-                res = await run_pipeline(
+                
+                # Start pipeline as an asynchronous task
+                task = asyncio.create_task(run_pipeline(
                     info["path"], info["bytes"], info["name"],
                     user_email=job["user_email"], session_id=job_id
-                )
+                ))
+                
+                # Send periodic keep-alive pings while waiting for the task
+                while not task.done():
+                    try:
+                        await asyncio.wait_for(asyncio.shield(task), timeout=15.0)
+                    except asyncio.TimeoutError:
+                        # Send standard SSE comment as keep-alive heartbeat
+                        yield ": ping\n\n"
+                
+                res = await task
+                
                 # Emit result event with image index
                 result_msg = json.dumps({
                     "event": "result",
@@ -85,7 +97,15 @@ async def stream(job_id: str):
         finally:
             # Cleanup job entry after streaming finishes (whether success or error)
             _job_store.pop(job_id, None)
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 @app.post("/api/filter")
 async def filter_api(payload: dict):

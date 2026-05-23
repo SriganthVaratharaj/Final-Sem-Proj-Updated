@@ -6,34 +6,41 @@ This document provides a simple, step-by-step explanation of how the **Multimoda
 
 ## 🚀 Step-by-Step Flow
 
-### Step 1: User Upload (Frontend)
-- **Action:** The user uploads a scanned invoice or thermal receipt via the **React UI Dashboard**.
-- **What Happens:** The image is sent over the local network to our backend API.
+### Step 1: User Capture & Canvas Cropping (Frontend)
+*   **Action:** The user captures a photo of an invoice using the **In-App Live Video Scanner** or selects an image/PDF file from their device.
+*   **What Happens:** 
+    *   If using the camera, the system streams live video to a viewfinder with visual guides, snapping a high-resolution canvas frame to prevent device OS memory crashes.
+    *   The captured image is opened in a viewport-locked touch cropper canvas, allowing the user to select the document boundaries (removing background noise like table textures or unrelated text).
+    *   The image is cropped and automatically downscaled to a max dimension of 1200px (to avoid model memory overhead) before sending it to the backend.
 
 ### Step 2: Local Pre-Processing (Backend)
-- **Action:** The **FastAPI Master Node** (running locally on our 4GB VRAM machine) receives the image.
-- **Image Enhancement:** The system applies **CLAHE** (Contrast Limited Adaptive Histogram Equalization) to improve the visibility of faded text, especially on thermal receipts.
-- **Dynamic Splitting:** If the system detects a very tall image (like a long grocery receipt), it splits it into smaller overlapping chunks to prevent the AI from crashing.
+*   **Action:** The **FastAPI Master Node** receives the image file.
+*   **Image Enhancement:** The system applies **CLAHE** (Contrast Limited Adaptive Histogram Equalization) to optimize contrast and enhance readability of faded text on receipt documents.
+*   **Dynamic Splitting:** If the document is exceptionally tall, the system partitions it into overlapping chunks to bypass token length limitations and prevent VLM decoding failures.
 
-### Step 3: Offloading to the Cloud (The Tunnel)
-- **Action:** Because a 32-Billion parameter AI model cannot run on our local 4GB VRAM machine, the backend creates a secure bridge.
-- **What Happens:** The backend sends the enhanced image and our "Master Prompt" through a secure **Cloudflare Tunnel** to a remote worker node.
+### Step 3: Tunnel Handshake & Heartbeat Streaming
+*   **Action:** The Master Node initiates the extraction request to the remote model.
+*   **What Happens:** 
+    *   The Master Node posts the image to the remote worker node through a secure **Cloudflare Tunnel**.
+    *   While the heavy VLM inference runs on the GPU, the FastAPI server streams keep-alive heartbeat pings (`: ping\n\n`) over Server-Sent Events (SSE) every 15 seconds to prevent the tunnel from timing out.
 
-### Step 4: AI Extraction (Kaggle GPU Worker)
-- **Action:** The remote worker node, hosted on **Kaggle** utilizing powerful **Dual T4 GPUs**, receives the payload.
-- **Processing:** The **Qwen2.5-VL-32B** model processes the image:
-  - It natively reads the text (acting as OCR) while understanding the spatial layout (e.g., this number is below the "Total" header).
-  - It extracts the data simultaneously into a structured format (JSON) while maintaining the original language (e.g., Hindi, Tamil).
-  - It translates the semantic structure into English.
-  - It generates a "Digital Twin" — a text grid that perfectly mimics the visual layout of the original document.
+### Step 4: AI Visual Extraction (Kaggle GPU Worker)
+*   **Action:** The remote worker node, running on **Kaggle** utilizing powerful **Dual T4 GPUs**, receives the payload.
+*   **Processing:** The **Qwen2.5-VL-32B** model processes the image:
+    *   **Spatial OCR**: Extracts text from visual layout coordinates, reading native scripts natively (Tamil, Hindi, Marathi, etc.).
+    *   **Translation & Transliteration**: Extracts native language values and generates a corresponding English translation block (`english_json` + `english_layout_text`).
+    *   **Digital Twin**: Generates a layout-preserving plaintext grid recreating the spatial positioning of columns, header sections, and totals.
 
-### Step 5: Post-Processing & Stitching (Backend)
-- **Action:** The Kaggle node sends the generated structured data back through the tunnel to our local FastAPI server.
-- **What Happens:** If the image was split in Step 2, the backend intelligently stitches the extracted JSON results back together. It also parses the outputs to ensure they are ready for display.
+### Step 5: Translation Merging & Export Generation (Backend)
+*   **Action:** The master node receives the raw extraction and generates report files.
+*   **What Happens:**
+    *   **Fallback-Safe Merge**: The backend merges `english_json` over the native fields key-by-key. Any untranslated fields fall back to native values, ensuring zero data loss.
+    *   **Export Creation**: Automatically compiles Excel sheets (`.xlsx`), notepad reports (`.txt`), raw JSON dumps, and Digital Twin files.
+    *   **MongoDB Persistence**: Saves the full analysis profile, including fields, logs, and export urls, to MongoDB.
 
-### Step 6: Result Display (Frontend)
-- **Action:** The React Dashboard receives the final processed data.
-- **What Happens:** The team or user can view the extracted native language data, the English translation, and the spatial "Digital Twin" to visually verify accuracy against the original document.
+### Step 6: Result Verification (Frontend)
+*   **Action:** The React UI receives the completed extraction stream.
+*   **What Happens:** The user reviews the standardized layout template (fully mapped to English), toggles the Spatial Twin tab, and downloads any generated formats.
 
 ---
 

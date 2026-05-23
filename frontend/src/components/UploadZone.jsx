@@ -7,7 +7,11 @@ export default function UploadZone({ onSubmit, disabled }) {
   const accept = '.jpg,.jpeg,.png,.bmp,.tif,.tiff'
 
   const addFiles = useCallback((fileList) => {
-    const allowed = Array.from(fileList).filter(f => /\.(jpe?g|png|bmp|tiff?)$/i.test(f.name))
+    const allowed = Array.from(fileList).filter(f => {
+      const isImg = f.type && f.type.startsWith('image/')
+      const hasExt = /\.(jpe?g|png|bmp|tiff?)$/i.test(f.name)
+      return isImg || hasExt
+    })
     setFiles(prev => {
       const names = new Set(prev.map(f => f.name))
       return [...prev, ...allowed.filter(f => !names.has(f.name))]

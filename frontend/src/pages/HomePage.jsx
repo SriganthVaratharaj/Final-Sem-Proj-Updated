@@ -16,7 +16,7 @@ export default function HomePage() {
 
     const handleBeforeUnload = () => {
       // sendBeacon only supports POST; use keepalive fetch for DELETE
-      fetch(`http://localhost:8000/api/cleanup/${cleanupTarget}`, {
+      fetch(`/api/cleanup/${cleanupTarget}`, {
         method: 'DELETE',
         keepalive: true,
       }).catch(() => {})
@@ -26,7 +26,7 @@ export default function HomePage() {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      fetch(`http://localhost:8000/api/cleanup/${cleanupTarget}`, { method: 'DELETE' }).catch(() => {})
+      fetch(`/api/cleanup/${cleanupTarget}`, { method: 'DELETE' }).catch(() => {})
     }
   }, [user, activeJobId])
 

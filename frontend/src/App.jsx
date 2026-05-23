@@ -10,25 +10,7 @@ function NavBar() {
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="font-semibold text-lg text-gray-900">Invoice Extractor</div>
 
-        <div className="flex items-center gap-3">
-          {user ? (
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-block text-xs text-gray-600 bg-gray-100 py-1 px-3 rounded border border-gray-200">
-                {user.email}
-              </span>
-              <button onClick={logout} className="btn-ghost text-sm" title="Logout">
-                Logout
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={openAuth}
-              className="btn-primary text-sm"
-            >
-              Sign In
-            </button>
-          )}
-        </div>
+        {/* Sign In option is hidden for now */}
       </div>
     </nav>
   )

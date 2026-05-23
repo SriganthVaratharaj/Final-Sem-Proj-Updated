@@ -11,26 +11,30 @@ To overcome local hardware constraints (e.g., standard 4GB VRAM limitations), th
 
 ```mermaid
 graph TD
-    A[User Uploads Invoice/Receipt] --> B[Local FastAPI Master Node]
-    B --> C{Is Image Tall?}
-    C -->|Yes| D[Dynamic Overlap Splitting]
-    C -->|No| E[CLAHE Image Enhancement]
-    D --> E
-    E --> F[Prompt Orchestration & Context Build]
-    F -->|Secure Cloudflare Tunnel| G[Kaggle Remote Worker Node]
+    A[User Opens Scanner / Uploads File] --> B[Capture Live Video Frame / Select Gallery File]
+    B --> C[Interactive Canvas Cropping & Downscaling]
+    C --> D[Local FastAPI Master Node]
+    D --> E{Is Image Tall?}
+    E -->|Yes| F[Dynamic Overlap Splitting]
+    E -->|No| G[CLAHE Image Enhancement]
+    F --> G
+    G --> H[Prompt Orchestration & Context Build]
+    H -->|Secure Tunnel with SSE Heartbeats| I[Kaggle Remote Worker Node]
     
     subgraph Kaggle Cloud GPU (Dual T4)
-    G --> H[Qwen2.5-VL-32B Processing]
-    H --> I[ViT Spatial Feature Extraction]
-    I --> J[LLM Cross-Attention Decoding]
-    J --> K[JSON & Layout Output Generation]
+    I --> J[Qwen2.5-VL-32B Processing]
+    J --> K[ViT Spatial Feature Extraction]
+    K --> L[LLM Cross-Attention Decoding]
+    L --> M[JSON & Layout Output Generation]
     end
     
-    K -->|REST API Response| L[Local Post-Processing]
-    L --> M[Parse Native & English JSON]
-    L --> N[Render Digital Twin Text Grid]
-    M --> O[React UI Dashboard]
-    N --> O
+    M -->|REST API Response| N[Local Post-Processing]
+    N --> O[Fallback-Safe Translation Merging]
+    N --> P[Render Digital Twin Text Grid]
+    O --> Q[Generate Excel/JSON/Report Exports]
+    Q --> R[MongoDB Persistence]
+    R --> S[React UI Dashboard]
+    P --> S
 ```
 
 ---
@@ -42,8 +46,9 @@ architecture-beta
     group local(cloud)[Local Environment - 4GB VRAM]
     group remote(cloud)[Kaggle Environment - 30GB VRAM]
     
-    service frontend(internet)[React UI] in local
-    service backend(server)[FastAPI Master] in local
+    service frontend(internet)[React UI & Canvas Cropper] in local
+    service backend(server)[FastAPI Master & Export Manager] in local
+    service db(database)[MongoDB History] in local
     service enhancement(database)[Image Pre-processor] in local
     
     service tunnel_local(internet)[Cloudflare Client] in local
@@ -54,6 +59,7 @@ architecture-beta
 
     frontend:R --> L:backend
     backend:B --> T:enhancement
+    backend:B --> T:db
     backend:R --> L:tunnel_local
     tunnel_local:R --> L:tunnel_remote
     tunnel_remote:R --> L:gpu
@@ -77,6 +83,29 @@ The "Master Prompt" algorithm leverages Chain-of-Thought (CoT) zero-shot prompti
 
 ### 4. Digital Twin Reconstruction Grid
 The system bypasses geometric post-processing by commanding the VLM to natively generate a physical `.txt` grid representation of the document. This "Digital Twin" visually mimics the 2D spatial arrangement of the original invoice, preserving column alignments and visual hierarchy for human verification.
+
+### 5. Mobile-Optimized Live Camera Video Scanner
+To circumvent mobile OS crashes caused by high-resolution camera native applications taking over browser tab memory, this system implements a direct in-app media stream viewfinder via `navigator.mediaDevices.getUserMedia`. It routes the raw feed into an emerald scanner canvas overlay with animated guide frames, capturing optimized frames on demand.
+
+### 6. Viewport-Locked Drag-and-Drop Crop Mechanics
+To ensure touch-dragging does not cause page elastic bounce/scroll on mobile, the cropping interface wraps the target image tightly within a `relative inline-block` CSS wrapper configured with `touch-action: none`. Touch gestures are mapped dynamically to absolute pixel coordinates and scaled accurately against the image's source resolution regardless of responsive screen rendering. It caps cropped outputs to a maximum dimension of 1200px to avoid GPU memory overhead.
+
+### 7. Fallback-Safe Translation Merging
+To resolve partial or empty translation issues, the backend pipeline runs a merging algorithm: it initialises a dictionary with the original native extraction fields and overlays translated values from the model's `english_json` block where present. If a translation is omitted by the VLM, the native value remains intact, ensuring zero data loss in the standard layout view.
+
+### 8. Keep-Alive SSE Heartbeat Loop
+To prevent Cloudflare's strict 100-second idle connection timeout from closing the API stream during remote GPU VLM inference passes, the server implements an asynchronous keep-alive loop. It periodically yields standard SSE comment packets (`: ping\n\n`) every 15 seconds, keeping the tunnel connection warm.
+
+### 9. Concurrency Serialization Lock
+To guarantee multi-user stability on shared remote worker nodes (like Kaggle free Dual-T4 instances), the inference pipeline runs requests through a global threading synchronization lock (`_vlm_lock`). This prevents simultaneous VLM queries from exceeding available VRAM and causing GPU out-of-memory crashes.
+
+### 10. Integrated Data Exports & Database Persistence
+Every successful document extraction automatically outputs high-quality downloads of:
+*   **Excel Spreadsheets (`.xlsx`)** mapping fields canonicalised by the Standardized Layout Template.
+*   **JSON Data Structure** saving both raw and template fields.
+*   **Notepad-style Structured Reports (`.txt`)** grouping headers, bodies, tables, and footers.
+*   **Digital Twin Text Blocks** preserving vertical spatial structures.
+All data payloads are saved via a MongoDB Motor client for visual historical audits on the dashboard.
 
 ---
 
@@ -202,6 +231,71 @@ npm install
 npm run dev
 ```
 *UI accessible at `http://localhost:5173`*
+
+---
+
+## 📱 Mobile & Multi-Device Camera Testing Guide
+
+To test the system on real mobile devices (and utilize the native mobile camera for receipt scanning), follow one of the methods below. 
+
+### Prerequisites
+1. Ensure the Kaggle worker node is running and the tunnel URL is copied.
+2. Update the local `.env` file with the Kaggle URL:
+   ```env
+   KAGGLE_VLM_URL=https://your-kaggle-worker.trycloudflare.com
+   ```
+
+---
+
+### Comparison of Testing Methods
+
+| Metric | Path A: Production Build (Recommended for Demos) | Path B: Vite Dev Server (Recommended for Coding) |
+| :--- | :--- | :--- |
+| **How it Works** | React is built (`npm run build`). FastAPI serves static files directly. | Vite runs a hot-reloading dev server. Proxies `/api` to FastAPI. |
+| **Servers Run** | Only Local Backend (`python main.py` on Port 8000). | Local Backend (Port 8000) + Vite Dev Server (Port 5173). |
+| **Tunnels Run** | Single Tunnel for Port 8000. | Single Tunnel for Port 5173. |
+| **Live Updates**| No. Must rebuild (`npm run build`) to see UI changes. | Yes. Hot-reloads UI instantly when React code is changed. |
+| **System Overhead**| Low. Only one Node/Python server running. | Medium. Multiple active processes. |
+
+---
+
+### 🚀 Step-by-Step Execution
+
+#### Method A: Serving Production Build (Simplified)
+1. **Build the Frontend:**
+   ```bash
+   cd frontend
+   npm run build
+   ```
+2. **Start the FastAPI Backend:**
+   ```bash
+   cd ../backend
+   python main.py
+   ```
+3. **Expose the Backend via Tunnel:**
+   ```bash
+   # Run from the root directory:
+   .\backend\cloudflared.exe tunnel --url http://localhost:8000
+   ```
+4. **Open on Mobile:** Load the generated HTTPS URL on your phone's browser. The mobile camera button will trigger the native camera, capture the photo, upload it to the local backend, offload to Kaggle VLM, and return results.
+
+#### Method B: Dev Server Proxy (Live Development)
+1. **Start the FastAPI Backend:**
+   ```bash
+   cd backend
+   python main.py
+   ```
+2. **Start the Vite Dev Server:**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+3. **Expose the Dev Server via Tunnel:**
+   ```bash
+   # Run from the root directory:
+   .\backend\cloudflared.exe tunnel --url http://localhost:5173
+   ```
+4. **Open on Mobile:** Load the generated HTTPS URL on your phone's browser. Live UI modifications will automatically reflect on the mobile screen.
 
 ---
 

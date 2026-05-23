@@ -90,6 +90,26 @@ Presentation-la "Enna algorithms use pannirukinga?" nu ketta, intha 5 points-a c
 * **Enga Work Aaguthu?:** Local FastAPI (Master) and Kaggle GPU (Worker) naduvula. Cloudflare tunnel-a oru safe aana pipe mathiri use panni data-va anuprom.
 * **Yaar Create Panna?:** Open Source Community (llama.cpp, FastAPI, Cloudflare combinations vechu namma build pannathu).
 
+### 6. Mobile Viewfinder Scanner & Downscaling
+* **Enna Pannuthu? (Like a Baby):** Mobile phone camera app-a directly open panna browser memory overload aagi close aaidum. Athunala browser ullaaye oru camera lens overlay vechu click panni, pixel size-a adjust panni (max 1200px) chinnathaa backend-ku send pannum.
+* **Enga Work Aaguthu?:** Mobile browser-la camera scan trigger pannumpothu.
+* **Yaar Create Panna?:** HTML5 getUserMedia and Custom Canvas capture API.
+
+### 7. Viewport-Locked Canvas Cropper
+* **Enna Pannuthu? (Like a Baby):** Mobile-la crop pannum pothu screen bounce aagama (scrolling logic disabled via touch-action: none) correct-a bill-oda edges-a mattum drag panni vetti eduthukalaam. Background table textures or extra objects-a remove panna ithu helpful.
+* **Enga Work Aaguthu?:** Photo eduthathu ku aprm preview screen-la.
+* **Yaar Create Panna?:** Custom CSS Touch Action Lock and canvas scaling coordinates.
+
+### 8. Fallback-Safe Translation Merging
+* **Enna Pannuthu? (Like a Baby):** Multi-language bills-la (e.g. Tamil letters in bill) AI model sila words-a translate panna maranthudum. Appo blank-a kaatama, original Tamil word-ayey background-la fall back panni retain panni template-la output-a neat-a kaatum. Data loss zero!
+* **Enga Work Aaguthu?:** Backend pipeline post-processing-la.
+* **Yaar Create Panna?:** Custom key-by-key dictionary merging.
+
+### 9. SSE Keep-Alive Heartbeats
+* **Enna Pannuthu? (Like a Baby):** Remote Kaggle server processing-ku 2 mins continuous-a work pannum pothu Cloudflare pathi valila "no signal" nu connection-a cut pannidum. Athu nadakama iruka master server "naa innum work pannitu thaan iruken" nu 15s ku oru thadava ping sound (sse comment) anuppite irukum.
+* **Enga Work Aaguthu?:** FastAPI Server streaming channel-la.
+* **Yaar Create Panna?:** Async Stream comment generator loop.
+
 ---
 
 All the best bro! Panel kitta thool kelapunga!
