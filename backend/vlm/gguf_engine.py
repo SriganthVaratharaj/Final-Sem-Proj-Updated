@@ -135,6 +135,21 @@ def _load_gguf_model(model_type="qwen"):
     return None
 
 def _get_dynamic_kaggle_url():
+    # 1. Try reading from local vlm_settings.json file if it exists
+    try:
+        from backend.config import GUEST_DIR
+        settings_file = GUEST_DIR / "vlm_settings.json"
+        if settings_file.exists():
+            import json
+            with open(settings_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                val = data.get("vlm_url", "").strip()
+                if val:
+                    return val
+    except Exception:
+        pass
+
+    # 2. Fallback to .env config
     import os
     from dotenv import load_dotenv
     from pathlib import Path

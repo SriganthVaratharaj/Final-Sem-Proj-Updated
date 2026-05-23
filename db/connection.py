@@ -10,13 +10,14 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
+from backend.config import get_config_value
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "invoice_ai")
+MONGO_URI: str = get_config_value("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME: str = get_config_value("MONGO_DB_NAME", "invoice_ai")
 
 # ── Async client (Motor) — used inside FastAPI async routes ───────────────────
 _async_client = None

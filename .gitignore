@@ -5,6 +5,11 @@
 # Backend / Python
 **/__pycache__/
 *.pyc
+.venv/
+venv/
+env/
+ENV/
+
 
 # Database and Data
 sample_data/
