@@ -4,6 +4,7 @@ import ResultsScreen from '../components/screens/ResultsScreen'
 import { useSSEStream } from '../hooks/useSSEStream'
 import { useAuth } from '../context/AuthContext'
 import { useEffect } from 'react'
+import { getFileUrl } from '../services/api'
 
 export default function HomePage() {
   const { uploading, processing, stages, results, error, done, process, reset, activeJobId } = useSSEStream()
@@ -16,7 +17,7 @@ export default function HomePage() {
 
     const handleBeforeUnload = () => {
       // sendBeacon only supports POST; use keepalive fetch for DELETE
-      fetch(`/api/cleanup/${cleanupTarget}`, {
+      fetch(getFileUrl(`/api/cleanup/${cleanupTarget}`), {
         method: 'DELETE',
         keepalive: true,
       }).catch(() => {})
@@ -26,7 +27,7 @@ export default function HomePage() {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      fetch(`/api/cleanup/${cleanupTarget}`, { method: 'DELETE' }).catch(() => {})
+      fetch(getFileUrl(`/api/cleanup/${cleanupTarget}`), { method: 'DELETE' }).catch(() => {})
     }
   }, [user, activeJobId])
 
