@@ -14,8 +14,8 @@ if str(_PROJECT_ROOT) not in sys.path: sys.path.insert(0, str(_PROJECT_ROOT))
 from backend.auth.routes import router as auth_router, get_current_user_optional
 from backend.config import *
 from backend.pipeline import run_pipeline
-from db.connection import ping_db
-from db.repository import delete_result, get_result, list_results
+from backend.db.connection import ping_db
+from backend.db.repository import delete_result, get_result, list_results
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 logger = logging.getLogger(__name__)
@@ -26,6 +26,22 @@ _job_store = {}
 async def lifespan(app: FastAPI):
     # Safe Mode Startup
     logger.info("[startup] Backend ready.")
+    
+    # Pre-populate vlm_settings.json from MongoDB on startup if available
+    try:
+        from backend.db.connection import ping_db, get_async_db
+        if await ping_db():
+            db_conn = get_async_db()
+            if db_conn is not None:
+                doc = await db_conn["settings"].find_one({"key": "vlm_url"})
+                if doc and doc.get("value"):
+                    settings_file = GUEST_DIR / "vlm_settings.json"
+                    GUEST_DIR.mkdir(parents=True, exist_ok=True)
+                    with open(settings_file, "w", encoding="utf-8") as f:
+                        json.dump({"vlm_url": doc["value"]}, f, ensure_ascii=False, indent=4)
+                    logger.info(f"[startup] Loaded VLM URL from DB: {doc['value']}")
+    except Exception as e:
+        logger.warning(f"[startup] Failed to pre-populate VLM URL from DB: {e}")
     yield
 
 app = FastAPI(title=API_TITLE, description=API_DESCRIPTION, version=API_VERSION, lifespan=lifespan)
@@ -123,6 +139,66 @@ async def cleanup_job(job_id: str):
     if job_id in _job_store:
         del _job_store[job_id]
     return {"status": "ok", "message": "Cleanup successful"}
+
+# Settings routes to dynamically set/get the VLM URL
+@app.post("/api/settings/vlm_url")
+async def set_vlm_url(payload: dict):
+    url = payload.get("vlm_url")
+    if not url:
+        raise HTTPException(400, detail="vlm_url is required")
+    try:
+        # Write to settings JSON file
+        settings_file = GUEST_DIR / "vlm_settings.json"
+        GUEST_DIR.mkdir(parents=True, exist_ok=True)
+        with open(settings_file, "w", encoding="utf-8") as f:
+            json.dump({"vlm_url": url}, f, ensure_ascii=False, indent=4)
+        
+        # Try updating MongoDB if available
+        try:
+            from backend.db.connection import ping_db, get_async_db
+            if await ping_db():
+                db_conn = get_async_db()
+                if db_conn is not None:
+                    await db_conn["settings"].update_one(
+                        {"key": "vlm_url"},
+                        {"$set": {"value": url}},
+                        upsert=True
+                    )
+                    logger.info("Saved VLM URL to database settings collection")
+        except Exception as dbe:
+            logger.warning(f"Failed to update MongoDB with new VLM URL: {dbe}")
+            
+        logger.info(f"VLM URL successfully updated to: {url}")
+        return {"status": "ok", "vlm_url": url}
+    except Exception as e:
+        logger.error(f"Failed to save VLM URL: {e}")
+        raise HTTPException(500, detail=str(e))
+
+@app.get("/api/settings/vlm_url")
+async def get_vlm_url():
+    settings_file = GUEST_DIR / "vlm_settings.json"
+    if settings_file.exists():
+        try:
+            with open(settings_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("vlm_url"):
+                    return {"vlm_url": data["vlm_url"]}
+        except Exception:
+            pass
+            
+    # Try fetching from DB
+    try:
+        from backend.db.connection import ping_db, get_async_db
+        if await ping_db():
+            db_conn = get_async_db()
+            if db_conn is not None:
+                doc = await db_conn["settings"].find_one({"key": "vlm_url"})
+                if doc and doc.get("value"):
+                    return {"vlm_url": doc["value"]}
+    except Exception:
+        pass
+                
+    return {"vlm_url": KAGGLE_VLM_URL}
 
 @app.get("/")
 @app.get("/{path:path}")

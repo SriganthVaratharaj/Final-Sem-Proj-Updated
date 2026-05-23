@@ -129,7 +129,7 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
         twin_docx_url = f"/outputs/{user_email or 'guest'}/{twin_docx_path.name}"
 
         # 6. Save to Database
-        from db.repository import save_result
+        from backend.db.repository import save_result
         db_res = {
             "image_name": original_filename,
             "document_type": "invoice",

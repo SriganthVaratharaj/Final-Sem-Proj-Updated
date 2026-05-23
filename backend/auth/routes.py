@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Header
 from pydantic import BaseModel
 import jwt
 
-from db.auth_repository import create_user, get_user_by_email, verify_password
+from backend.db.auth_repository import create_user, get_user_by_email, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
