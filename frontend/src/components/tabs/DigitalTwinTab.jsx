@@ -20,26 +20,6 @@ export default function DigitalTwinTab({ result }) {
             Preserves the original bill format. Best viewed on desktop.
           </p>
         </div>
-        <div className="flex gap-2">
-          {result.digital_twin_txt_url && (
-            <a 
-              href={`http://localhost:8000${result.digital_twin_txt_url}`} 
-              download
-              className="text-[10px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded border border-gray-200 transition-colors"
-            >
-              DOWNLOAD .TXT
-            </a>
-          )}
-          {result.digital_twin_docx_url && (
-            <a 
-              href={`http://localhost:8000${result.digital_twin_docx_url}`} 
-              download
-              className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-200 transition-colors"
-            >
-              DOWNLOAD .DOCX
-            </a>
-          )}
-        </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 overflow-x-auto shadow-inner">
