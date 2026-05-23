@@ -48,6 +48,10 @@ app = FastAPI(title=API_TITLE, description=API_DESCRIPTION, version=API_VERSION,
 app.include_router(auth_router)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+# Ensure static directories exist before mounting
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+GUEST_DIR.mkdir(parents=True, exist_ok=True)
+
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
 app.mount("/tmp", StaticFiles(directory=GUEST_DIR), name="tmp")
 
