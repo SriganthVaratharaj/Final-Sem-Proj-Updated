@@ -12,7 +12,7 @@ const SOURCE_META = {
   unavailable: { label: 'Model Unavailable', tier: '' },
 }
 
-function handleDownloadTxt(result) {
+function handleDownloadTxt(result, translatedText = null, targetLang = null) {
   const rawFields = result.vlm_fields || {}
   
   let text = `DOCUMENT EXTRACTION REPORT\n`
@@ -38,11 +38,11 @@ function handleDownloadTxt(result) {
     text += rawFields.english_extraction + `\n\n`
   }
 
-  if (result.text_report_preview) {
+  if (translatedText && targetLang) {
     text += `=========================================\n`
-    text += `STRUCTURED REPORT PREVIEW\n`
+    text += `CUSTOM TRANSLATION (${targetLang.toUpperCase()})\n`
     text += `=========================================\n`
-    text += result.text_report_preview + `\n`
+    text += translatedText + `\n\n`
   }
 
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
@@ -75,9 +75,9 @@ export function ResultCard({ result, defaultOpen }) {
     setTranslateError(null)
     try {
       const endpoint = getFileUrl('/api/translate')
-      const textToTranslate = result.text_report_preview || rawFields.english_extraction || rawFields.full_extraction || ''
+      const textToTranslate = rawFields.english_extraction || rawFields.full_extraction || result.text_report_preview || ''
       if (!textToTranslate.trim()) {
-        throw new Error('No text found in report preview to translate.')
+        throw new Error('No text found in extraction output to translate.')
       }
 
       const res = await fetch(endpoint, {
@@ -170,14 +170,14 @@ export function ResultCard({ result, defaultOpen }) {
           </div>
 
           {/* Download TXT Report Section */}
-          {result.text_report_preview && (
+          {(rawFields.full_extraction || rawFields.english_extraction || result.text_report_preview) && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
               <div>
                 <div className="font-semibold text-blue-900 text-sm">Download Report</div>
                 <div className="text-xs text-blue-700 mt-0.5">Save the structured text report of the document.</div>
               </div>
               <button
-                onClick={() => handleDownloadTxt(result)}
+                onClick={() => handleDownloadTxt(result, translatedText, targetLang)}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-900 text-white font-medium px-4 py-2 rounded-md hover:bg-gray-800 transition-colors shadow-sm text-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -185,19 +185,6 @@ export function ResultCard({ result, defaultOpen }) {
                 </svg>
                 Download TXT
               </button>
-            </div>
-          )}
-
-          {/* Report Preview */}
-          {result.text_report_preview && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-1 bg-gray-500 rounded-full"></div>
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Report Preview</h3>
-              </div>
-              <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-[11px] text-gray-700 font-mono whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto shadow-inner">
-                {result.text_report_preview}
-              </pre>
             </div>
           )}
 

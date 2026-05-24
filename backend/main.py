@@ -137,8 +137,8 @@ async def filter_api(payload: dict):
 
 @app.post("/api/translate")
 async def translate_api(payload: dict):
+    import re
     from backend.vlm.gguf_engine import query_local_llava
-    from backend.vlm.vlm_model import _clean_output
     text = payload.get("text")
     target_lang = payload.get("target_lang")
     if not text or not target_lang:
@@ -153,8 +153,15 @@ async def translate_api(payload: dict):
     )
     
     res = await asyncio.to_thread(query_local_llava, b"", prompt, INTERNAL_MODEL_API_KEY)
-    cleaned = _clean_output(res)
-    return {"translated_text": cleaned or res}
+    
+    cleaned = res
+    if cleaned:
+        cleaned = re.sub(r'^```[a-zA-Z]*\n', '', cleaned)
+        cleaned = re.sub(r'\n```$', '', cleaned)
+        cleaned = cleaned.strip()
+        
+    return {"translated_text": cleaned}
+
 
 @app.get("/api/results")
 async def history(user_email: str = Depends(get_current_user_optional)): 
