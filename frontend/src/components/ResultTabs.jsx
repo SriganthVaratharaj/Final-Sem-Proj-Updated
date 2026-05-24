@@ -217,71 +217,78 @@ export function ResultCard({ result, defaultOpen }) {
           )}
 
           {/* Custom Translation Section */}
-          <div className="border-t border-gray-100 pt-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
-              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Custom Document Translator</h3>
-            </div>
-            <p className="text-[11px] text-gray-500">Translate the extracted document fields and values into any language using the visual reasoning engine.</p>
-            
-            <div className="flex flex-wrap items-center gap-3">
+          {false && (
+            <div className="border-t border-gray-100 pt-5 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600">Target Language:</span>
-                <select
-                  value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value)}
-                  className="border border-gray-300 rounded px-2.5 py-1 text-xs bg-white text-gray-800 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="Tamil">Tamil (தமிழ்)</option>
-                  <option value="Hindi">Hindi (हिन्दी)</option>
-                  <option value="Telugu">Telugu (తెలుగు)</option>
-                  <option value="Kannada">Kannada (ಕನ್ನಡ)</option>
-                  <option value="Malayalam">Malayalam (മലയാളം)</option>
-                  <option value="Bengali">Bengali (বাংলা)</option>
-                  <option value="Gujarati">Gujarati (ગુજરાતી)</option>
-                  <option value="Marathi">Marathi (मराठी)</option>
-                  <option value="Punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
-                  <option value="Spanish">Spanish (Español)</option>
-                  <option value="French">French (Français)</option>
-                  <option value="German">German (Deutsch)</option>
-                  <option value="Japanese">Japanese (日本語)</option>
-                  <option value="Chinese">Chinese (中文)</option>
-                </select>
+                <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Custom Document Translator</h3>
               </div>
-
-              <button
-                onClick={handleTranslate}
-                disabled={translating}
-                className="btn-primary text-xs py-1.5 px-4 rounded font-semibold shrink-0"
-              >
-                {translating ? 'Translating...' : 'Translate'}
-              </button>
-            </div>
-
-            {translating && (
-              <div className="text-xs text-indigo-600 font-semibold animate-pulse pt-1">
-                Translating report structure via remote worker node...
-              </div>
-            )}
-
-            {translateError && (
-              <div className="text-xs text-red-600 border border-red-100 bg-red-50 p-2 rounded">
-                Error: {translateError}
-              </div>
-            )}
-
-            {translatedText && (
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Translated Output ({targetLang})</h4>
-                  <button
-                    onClick={handleDownloadTranslation}
-                    className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline"
+              <p className="text-[11px] text-gray-500">Translate the extracted document fields and values into any language using the visual reasoning engine.</p>
+              
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-600">Target Language:</span>
+                  <select
+                    value={targetLang}
+                    onChange={(e) => setTargetLang(e.target.value)}
+                    className="border border-gray-300 rounded px-2.5 py-1 text-xs bg-white text-gray-800 focus:outline-none focus:border-indigo-500"
                   >
-                    Download Translated TXT
-                  </button>
+                    <option value="Tamil">Tamil (தமிழ்)</option>
+                    <option value="Hindi">Hindi (हिन्दी)</option>
+                    <option value="Telugu">Telugu (తెలుగు)</option>
+                    <option value="Kannada">Kannada (ಕನ್ನಡ)</option>
+                    <option value="Malayalam">Malayalam (മലയാളം)</option>
+                    <option value="Bengali">Bengali (বাংলা)</option>
+                    <option value="Gujarati">Gujarati (ગુજરાતી)</option>
+                    <option value="Marathi">Marathi (मराठी)</option>
+                    <option value="Punjabi">Punjabi (ਪੰਜਾਬী)</option>
+                    <option value="Spanish">Spanish (Español)</option>
+                    <option value="French">French (Français)</option>
+                    <option value="German">German (Deutsch)</option>
+                    <option value="Japanese">Japanese (日本語)</option>
+                    <option value="Chinese">Chinese (中文)</option>
+                  </select>
                 </div>
-                <pre className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 text-[11px] text-indigo-900 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+
+                <button
+                  onClick={handleTranslate}
+                  disabled={translating}
+                  className="btn-primary text-xs py-1.5 px-4 rounded font-semibold shrink-0"
+                >
+                  {translating ? 'Translating...' : 'Translate'}
+                </button>
+              </div>
+
+              {translating && (
+                <div className="text-xs text-indigo-600 font-semibold animate-pulse pt-1">
+                  Translating report structure via remote worker node...
+                </div>
+              )}
+
+              {translateError && (
+                <div className="text-xs text-red-600 border border-red-100 bg-red-50 p-2 rounded">
+                  Error: {translateError}
+                </div>
+              )}
+
+              {translatedText && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Translated Output ({targetLang})</h4>
+                    <button
+                      onClick={handleDownloadTranslation}
+                      className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline"
+                    >
+                      Download Translated TXT
+                    </button>
+                  </div>
+                  <pre className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 text-[11px] text-indigo-900 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                    {translatedText}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}o">
                   {translatedText}
                 </pre>
               </div>
