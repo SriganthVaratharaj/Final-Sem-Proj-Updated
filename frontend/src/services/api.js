@@ -29,13 +29,24 @@ export const processFiles = async (files) => {
   return data
 }
 
-export const fetchHistory = async (limit = 20) => {
-  const { data } = await axios.get(`${BASE}/results?limit=${limit}`)
+export const fetchHistory = async (limit = 20, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { data } = await axios.get(`${BASE}/results?limit=${limit}`, { headers })
   return data
 }
 
-export const deleteHistoryItem = async (id) => {
-  await axios.delete(`${BASE}/results/${id}`)
+export const deleteHistoryItem = async (id, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  await axios.delete(`${BASE}/results/${id}`, { headers })
+}
+
+export const searchHistory = async (q, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { data } = await axios.get(`${BASE}/results/search?q=${encodeURIComponent(q)}`, { headers })
+  return data
 }
 
 export const getStreamUrl = (jobId) => `${BASE}/stream/${jobId}`

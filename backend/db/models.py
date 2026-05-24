@@ -32,15 +32,17 @@ def make_invoice_document(
     gsheets_synced: bool = False,
     status: str = "success",
     error: str | None = None,
+    user_email: str | None = None,
 ) -> dict[str, Any]:
     """
     Build a MongoDB document dict for the invoice_results collection.
 
     Collection: invoice_results
     Indexes recommended:
-        - created_at (descending)
-        - status
-        - document_type
+         - created_at (descending)
+         - status
+         - document_type
+         - user_email
     """
     return {
         "created_at": datetime.now(timezone.utc),
@@ -48,6 +50,7 @@ def make_invoice_document(
         "status": status,
         "error": error,
         "document_type": document_type,
+        "user_email": user_email,
 
         # ── OCR (PaddleOCR) ──────────────────────────────────────────
         "ocr": {

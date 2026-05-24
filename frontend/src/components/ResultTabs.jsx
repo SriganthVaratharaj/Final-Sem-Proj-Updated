@@ -55,7 +55,7 @@ function handleDownloadTxt(result) {
   URL.revokeObjectURL(url)
 }
 
-function ResultCard({ result, defaultOpen }) {
+export function ResultCard({ result, defaultOpen }) {
   const [expanded, setExpanded] = useState(defaultOpen)
   const success = result.status === 'success'
 

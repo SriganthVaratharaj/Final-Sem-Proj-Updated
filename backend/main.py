@@ -136,7 +136,13 @@ async def filter_api(payload: dict):
     return _clean_output(res) or data
 
 @app.get("/api/results")
-async def history(): return {"results": await list_results()}
+async def history(user_email: str = Depends(get_current_user_optional)): 
+    return {"results": await list_results(limit=20, user_email=user_email)}
+
+@app.get("/api/results/search")
+async def search_api(q: str, user_email: str = Depends(get_current_user_optional)):
+    from backend.db.repository import search_results
+    return {"results": await search_results(q, user_email=user_email, limit=30)}
 
 @app.delete("/api/cleanup/{job_id}")
 async def cleanup_job(job_id: str):

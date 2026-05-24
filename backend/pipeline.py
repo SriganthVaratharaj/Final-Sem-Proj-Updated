@@ -139,7 +139,8 @@ async def run_pipeline(image_path, image_bytes, original_filename, on_stage=None
             "excel_file_url": excel_url,
             "json_output_url": json_url,
             "text_report_url": txt_url,
-            "status": "success"
+            "status": "success",
+            "user_email": user_email,
         }
         db_id = await save_result(db_res)
 

@@ -49,6 +49,7 @@ async def save_result(result: dict[str, Any]) -> str | None:
         gsheets_synced=result.get("gsheets_synced", False),
         status=result.get("status", "success"),
         error=result.get("error"),
+        user_email=result.get("user_email"),
     )
 
     try:
@@ -80,14 +81,15 @@ async def get_result(result_id: str) -> dict[str, Any] | None:
         return None
 
 
-async def list_results(limit: int = 20) -> list[dict[str, Any]]:
-    """Return the most recent `limit` results, newest first."""
+async def list_results(limit: int = 20, user_email: str | None = None) -> list[dict[str, Any]]:
+    """Return the most recent `limit` results for a user, newest first."""
     db = get_async_db()
     if db is None:
         return []
     try:
+        query = {"user_email": user_email}
         cursor = db[COLLECTION].find(
-            {},
+            query,
             {"ocr.texts": 0, "ocr.layout": 0, "layout.regions": 0},  # exclude heavy fields
         ).sort("created_at", -1).limit(limit)
 
@@ -100,6 +102,39 @@ async def list_results(limit: int = 20) -> list[dict[str, Any]]:
         return results
     except Exception as exc:
         logger.warning("DB list_results failed: %s", exc)
+        return []
+
+
+async def search_results(q: str, user_email: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+    """Search results by keyword in file name, document type or VLM script extractions."""
+    db = get_async_db()
+    if db is None:
+        return []
+    try:
+        regex_query = {"$regex": q, "$options": "i"}
+        query = {
+            "user_email": user_email,
+            "$or": [
+                {"file_name": regex_query},
+                {"document_type": regex_query},
+                {"vlm.fields.full_extraction": regex_query},
+                {"vlm.fields.english_extraction": regex_query}
+            ]
+        }
+        cursor = db[COLLECTION].find(
+            query,
+            {"ocr.texts": 0, "ocr.layout": 0, "layout.regions": 0},
+        ).sort("created_at", -1).limit(limit)
+
+        results = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            if doc.get("created_at"):
+                doc["created_at"] = doc["created_at"].isoformat()
+            results.append(doc)
+        return results
+    except Exception as exc:
+        logger.warning("DB search_results failed: %s", exc)
         return []
 
 
