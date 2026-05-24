@@ -170,7 +170,11 @@ def _query_local_llava_impl(image_bytes: bytes, prompt: str, api_key: str = "", 
         base_url = kaggle_url.rstrip('/')
         logger.info("[gguf] Starting async extraction on Kaggle: %s", base_url)
         try:
-            b64 = base64.b64encode(image_bytes).decode("utf-8")
+            if not image_bytes:
+                # 1x1 transparent GIF to prevent bitmap creation crash on Kaggle worker for text-only queries
+                b64 = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+            else:
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
             payload = json.dumps({
                 "image_base64": b64,
                 "prompt": prompt

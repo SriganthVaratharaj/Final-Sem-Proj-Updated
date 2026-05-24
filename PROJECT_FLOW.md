@@ -111,3 +111,23 @@ sequenceDiagram
     *   **User Isolation:** Database read/write queries verify the logged-in user's email signature from the request JWT token. Guest uploads are saved under a temporary guest ID and deleted from the view on session exit.
     *   **Regex Searching:** Queries Mongo using case-insensitive regex flags (`$options: "i"`) to find keywords across filenames, languages, or vendors.
     *   **Analytics Engine:** Aggregates database history on the client-side to render responsive, interactive SVG charts (spending trends, vendor shares, and currency charts) without external package overhead.
+
+---
+
+## 👤 User Mode Architecture: Logged-in vs. Guest Mode
+
+Here is a summary of features, capabilities, and restrictions comparing **Logged-in Mode** vs. **Guest (Anonymous) Mode**:
+
+| Feature / Metric | 🔐 Logged-In Mode | 👤 Guest (Anonymous) Mode |
+| :--- | :--- | :--- |
+| **History Persistence** | Permanent. Saved in MongoDB Atlas linked to user profile. | Temporary. Exists only during active browser session. |
+| **Workspace & Storage** | Dedicated directory on backend: `uploads/{user_email}/`. | Temp job directory: `uploads/tmp/{job_id}/`. |
+| **Multi-File Search** | Full access to search history via database regex search. | Disabled. Only current uploads are visible. |
+| **Clean-Up Trigger** | Files are persisted; can be manually deleted by the user. | Automatic. `beforeunload` event triggers DELETE on `/api/cleanup/{job_id}` to erase all temp images when browser tab is closed/refreshed. |
+| **Custom Translator** | Fully supported on all historical and new invoices. | Supported only on current session invoices. |
+| **Auth JWT Token** | Mandatory. Required in Request Header for database verification. | Optional. Endpoint defaults to guest directories if JWT is missing. |
+
+### 🛠️ Mode Design Summary:
+* **Guest Mode** is designed for quick, anonymous extractions. It keeps no footprints on the database and auto-deletes raw files on disconnect to preserve server storage.
+* **Logged-in Mode** provides a secure, private cloud vault. Users can view their historical invoices, query records, translate files, and download reports anytime from any device.
+
