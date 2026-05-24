@@ -13,7 +13,38 @@ const SOURCE_META = {
 }
 
 function handleDownloadTxt(result) {
-  const text = result.text_report_preview || ''
+  const rawFields = result.vlm_fields || {}
+  
+  let text = `DOCUMENT EXTRACTION REPORT\n`
+  text += `==========================\n\n`
+  text += `File Name      : ${result.image_name || 'report'}\n`
+  text += `Classification : ${result.metadata?.classification || 'Document'}\n`
+  if (rawFields.metadata?.detected_language) {
+    text += `Language       : ${rawFields.metadata.detected_language}\n`
+  }
+  text += `\n`
+
+  if (rawFields.full_extraction) {
+    text += `=========================================\n`
+    text += `NATIVE SCRIPT OUTPUT\n`
+    text += `=========================================\n`
+    text += rawFields.full_extraction + `\n\n`
+  }
+
+  if (rawFields.english_extraction) {
+    text += `=========================================\n`
+    text += `ENGLISH TRANSLATION OUTPUT\n`
+    text += `=========================================\n`
+    text += rawFields.english_extraction + `\n\n`
+  }
+
+  if (result.text_report_preview) {
+    text += `=========================================\n`
+    text += `STRUCTURED REPORT PREVIEW\n`
+    text += `=========================================\n`
+    text += result.text_report_preview + `\n`
+  }
+
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
