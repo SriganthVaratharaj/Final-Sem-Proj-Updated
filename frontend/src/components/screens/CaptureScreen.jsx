@@ -429,8 +429,15 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
           )}
 
           {cameraError && (
-            <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-yellow-800 text-xs">
-              {cameraError}
+            <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-yellow-800 text-xs flex justify-between items-center">
+              <span>{cameraError}</span>
+              <button 
+                onClick={() => setCameraError(null)} 
+                className="text-yellow-900 hover:text-yellow-950 font-bold ml-2 shrink-0 p-1"
+                title="Dismiss warning"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -450,16 +457,6 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 <p className="text-gray-900 font-semibold text-base">Use Camera Scanner</p>
                 <p className="text-gray-500 text-xs mt-0.5">Captures & crops for premium VLM parsing</p>
               </div>
-              {/* Native mobile camera fallback input (hidden) */}
-              <input 
-                type="file" 
-                ref={cameraInputRef}
-                accept="image/*" 
-                capture="environment" 
-                onChange={onChange} 
-                className="hidden" 
-                disabled={disabled} 
-              />
             </div>
 
             {/* Trigger File Browse/Drag-and-Drop */}
@@ -482,17 +479,32 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 <p className="text-gray-900 font-semibold text-base">Upload Files</p>
                 <p className="text-gray-500 text-xs mt-0.5">Select image or PDF files under 10MB</p>
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                multiple 
-                accept={accept} 
-                onChange={onChange} 
-                className="hidden" 
-                disabled={disabled} 
-              />
             </div>
           </div>
+
+          {/* Native mobile camera fallback input (hidden) */}
+          <input 
+            type="file" 
+            ref={cameraInputRef}
+            accept="image/*" 
+            capture="environment" 
+            onChange={onChange} 
+            onClick={(e) => e.stopPropagation()}
+            className="hidden" 
+            disabled={disabled} 
+          />
+
+          {/* Hidden File Input */}
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            multiple 
+            accept={accept} 
+            onChange={onChange} 
+            onClick={(e) => e.stopPropagation()}
+            className="hidden" 
+            disabled={disabled} 
+          />
         </>
       )}
     </div>

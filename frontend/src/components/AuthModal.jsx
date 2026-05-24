@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { getFileUrl } from '../services/api'
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuth, login } = useAuth()
@@ -27,7 +28,8 @@ export default function AuthModal() {
     setLoading(true)
     setError(null)
 
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
+    const path = isLogin ? '/api/auth/login' : '/api/auth/register'
+    const endpoint = getFileUrl(path)
     
     try {
       const res = await fetch(endpoint, {
