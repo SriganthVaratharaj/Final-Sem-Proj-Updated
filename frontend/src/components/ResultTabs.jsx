@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { deleteHistoryItem, fetchHistory } from '../services/api'
 
 const SOURCE_META = {
   kaggle_remote_vlm: { label: 'Kaggle Qwen2.5-VL-32B (Remote Tunnel)', tier: '30GB VRAM' },
@@ -178,108 +177,15 @@ function ResultCard({ result, defaultOpen }) {
   )
 }
 
-function HistoryRow({ item, onDelete }) {
-  return (
-    <div className="glass-light px-3 py-2.5 flex items-center gap-3 border border-gray-200">
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-gray-900 truncate">{item.file_name}</div>
-        <div className="text-[11px] text-gray-500 mt-0.5">
-          {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
-        </div>
-      </div>
-      <span className="tag capitalize shrink-0">{item.document_type || '—'}</span>
-      <span className={`tag shrink-0 ${item.status === 'success' ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
-        {item.status}
-      </span>
-      <button onClick={() => onDelete(item._id)} className="btn-ghost text-xs py-1 px-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors">
-        Delete
-      </button>
-    </div>
-  )
-}
-
 export default function ResultTabs({ results }) {
-  const [history, setHistory] = useState(null)
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
-
-  const loadHistory = async () => {
-    setLoadingHistory(true)
-    try {
-      const data = await fetchHistory(20)
-      setHistory(data.results || [])
-    } catch (_) {
-      setHistory([])
-    } finally {
-      setLoadingHistory(false)
-    }
-  }
-
-  const handleDelete = async (id) => {
-    try {
-      await deleteHistoryItem(id)
-      setHistory(prev => prev ? prev.filter(h => h._id !== id) : null)
-    } catch (err) {
-      console.error("Failed to delete history item:", err)
-    }
-  }
-
   if (!results || results.length === 0) return null
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Results ({results.length})</h2>
-        {results.map((r, i) => (
-          <ResultCard key={i} result={r} defaultOpen={i === 0} />
-        ))}
-      </div>
-
-      {/* Global Past Extractions Section */}
-      <div className="border-t border-gray-200 pt-6">
-        <button
-          onClick={() => {
-            const nextOpen = !historyOpen
-            setHistoryOpen(nextOpen)
-            if (nextOpen && !history) {
-              loadHistory()
-            }
-          }}
-          className="flex items-center justify-between w-full p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
-        >
-          <span className="text-sm font-semibold text-gray-700">Past Extractions History</span>
-          <span className="text-xs text-gray-500">{historyOpen ? 'Hide' : 'Show'}</span>
-        </button>
-
-        {historyOpen && (
-          <div className="mt-3 p-4 bg-white border border-gray-200 rounded-md space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">Showing last 20 extractions</span>
-              <button
-                onClick={loadHistory}
-                className="btn-ghost text-xs py-1 px-3 border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-                disabled={loadingHistory}
-              >
-                {loadingHistory ? 'Loading...' : 'Refresh'}
-              </button>
-            </div>
-
-            {loadingHistory && !history ? (
-              <div className="text-center py-4 text-sm text-gray-500">Loading history...</div>
-            ) : history ? (
-              history.length === 0 ? (
-                <p className="text-sm text-gray-500 italic text-center py-4">No history found.</p>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {history.map(h => (
-                    <HistoryRow key={h._id} item={h} onDelete={handleDelete} />
-                  ))}
-                </div>
-              )
-            ) : null}
-          </div>
-        )}
-      </div>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-gray-900">Results ({results.length})</h2>
+      {results.map((r, i) => (
+        <ResultCard key={i} result={r} defaultOpen={i === 0} />
+      ))}
     </div>
   )
 }
