@@ -49,13 +49,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 @router.post("/register", response_model=AuthResponse)
 async def register(request: AuthRequest):
+    email = request.email.strip().lower()
     try:
-        await create_user(request.email, request.password)
+        await create_user(email, request.password)
         # Auto login after register
         access_token = create_access_token(
-            data={"sub": request.email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            data={"sub": email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        return AuthResponse(message="User created and logged in", token=access_token, email=request.email)
+        return AuthResponse(message="User created and logged in", token=access_token, email=email)
     except ValueError as e:
         # Instead of generic 400, providing clear info that the account exists
         raise HTTPException(
@@ -65,7 +66,8 @@ async def register(request: AuthRequest):
 
 @router.post("/login", response_model=AuthResponse)
 async def login(request: AuthRequest):
-    user = await get_user_by_email(request.email)
+    email = request.email.strip().lower()
+    user = await get_user_by_email(email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -79,6 +81,6 @@ async def login(request: AuthRequest):
         )
         
     access_token = create_access_token(
-        data={"sub": request.email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    return AuthResponse(message="Logged in successfully", token=access_token, email=request.email)
+    return AuthResponse(message="Logged in successfully", token=access_token, email=email)
