@@ -28,9 +28,10 @@ async def _users_collection() -> AsyncIOMotorCollection:
 
 async def create_user(email: str, password: str) -> Dict[str, Any]:
     """Create a new user, returns user dict or raises ValueError if exists."""
+    clean_email = email.strip().lower()
     try:
         collection = await _users_collection()
-        existing = await collection.find_one({"email": email})
+        existing = await collection.find_one({"email": {"$regex": f"^{clean_email}$", "$options": "i"}})
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ async def create_user(email: str, password: str) -> Dict[str, Any]:
         
     hashed_pw = get_password_hash(password)
     user_doc = {
-        "email": email,
+        "email": clean_email,
         "hashed_password": hashed_pw
     }
     
@@ -63,9 +64,10 @@ async def create_user(email: str, password: str) -> Dict[str, Any]:
         )
 
 async def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    clean_email = email.strip().lower()
     try:
         collection = await _users_collection()
-        return await collection.find_one({"email": email})
+        return await collection.find_one({"email": {"$regex": f"^{clean_email}$", "$options": "i"}})
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
