@@ -69,8 +69,25 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
   }
 
   // --- Live Camera Scanner Methods ---
-  const startCamera = async () => {
+  const handleCameraClick = () => {
     if (disabled) return
+
+    // Check if secure context and getUserMedia are supported
+    const isSecure = window.isSecureContext
+    const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+
+    if (!isSecure || !hasGetUserMedia) {
+      setCameraError("Live camera scanner requires a secure HTTPS connection. Click here to use your native device camera fallback.")
+      if (cameraInputRef.current) {
+        cameraInputRef.current.click()
+      }
+      return
+    }
+
+    startCamera()
+  }
+
+  const startCamera = async () => {
     try {
       setCameraError(null)
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -92,12 +109,7 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
       }, 100)
     } catch (err) {
       console.error("Camera access error:", err)
-      setCameraError("Live camera access is restricted. Falling back to native device camera...")
-      setTimeout(() => {
-        if (cameraInputRef.current) {
-          cameraInputRef.current.click()
-        }
-      }, 1000)
+      setCameraError("Live camera permission denied or unavailable. Click here to use your native device camera.")
     }
   }
 
@@ -429,22 +441,31 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
           )}
 
           {cameraError && (
-            <div className="p-3 rounded-md border border-yellow-200 bg-yellow-50 text-yellow-800 text-xs flex justify-between items-center">
-              <span>{cameraError}</span>
-              <button 
-                onClick={() => setCameraError(null)} 
-                className="text-yellow-900 hover:text-yellow-950 font-bold ml-2 shrink-0 p-1"
-                title="Dismiss warning"
-              >
-                ✕
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                if (cameraInputRef.current) {
+                  cameraInputRef.current.click()
+                }
+              }}
+              className="w-full p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm hover:bg-amber-100 transition-colors flex items-center justify-between font-medium text-left shadow-sm"
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="text-lg leading-none mt-0.5">⚠️</span>
+                <div>
+                  <div className="font-semibold text-amber-950">Live Camera Restricted</div>
+                  <div className="text-xs text-amber-800 mt-0.5">
+                    {cameraError}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs bg-amber-200/60 text-amber-900 px-2 py-1 rounded font-bold uppercase shrink-0">Open Camera</span>
+            </button>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
             {/* Trigger In-App Camera Stream */}
             <div
-              onClick={startCamera}
+              onClick={handleCameraClick}
               className={`flex flex-col items-center justify-center gap-3 p-8 rounded-lg border border-gray-300 bg-white cursor-pointer hover:bg-gray-50 transition-colors shadow-sm ${disabled ? 'pointer-events-none opacity-50' : ''}`}
             >
               <div className="p-3 bg-emerald-50 rounded-full text-emerald-600">
