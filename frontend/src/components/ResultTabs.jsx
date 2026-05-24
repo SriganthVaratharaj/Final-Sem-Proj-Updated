@@ -172,22 +172,6 @@ function ResultCard({ result, defaultOpen }) {
               </div>
             </div>
           )}
-
-          {/* Metadata Footer */}
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-gray-500 border-t border-gray-100 pt-3">
-            <div>
-              <span className="font-semibold text-gray-600">Google Sheets:</span>{' '}
-              <span className={result.gsheets_synced ? 'text-green-600 font-semibold' : 'text-gray-500'}>
-                {result.gsheets_synced ? 'Synced' : 'Not synced'}
-              </span>
-            </div>
-            {result.db_id && (
-              <div>
-                <span className="font-semibold text-gray-600">MongoDB ID:</span>{' '}
-                <span className="font-mono text-gray-400">{result.db_id}</span>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
