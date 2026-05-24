@@ -69,22 +69,25 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
   }
 
   // --- Live Camera Scanner Methods ---
-  const handleCameraClick = () => {
-    if (disabled) return
+  // --- Live Camera Scanner Methods ---
+  const handleCameraClick = (e) => {
+    if (disabled) {
+      e.preventDefault()
+      return
+    }
 
     // Check if secure context and getUserMedia are supported
     const isSecure = window.isSecureContext
     const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 
-    if (!isSecure || !hasGetUserMedia) {
-      setCameraError("Live camera scanner requires a secure HTTPS connection. Click here to use your native device camera fallback.")
-      if (cameraInputRef.current) {
-        cameraInputRef.current.click()
-      }
-      return
+    if (isSecure && hasGetUserMedia) {
+      // Prevent label click from triggering native file picker; use live video
+      e.preventDefault()
+      startCamera()
+    } else {
+      // Allow default label click to trigger the native file selector synchronously!
+      setCameraError("Live camera scanner requires a secure HTTPS connection. Opening native camera fallback...")
     }
-
-    startCamera()
   }
 
   const startCamera = async () => {
@@ -441,13 +444,9 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
           )}
 
           {cameraError && (
-            <button
-              onClick={() => {
-                if (cameraInputRef.current) {
-                  cameraInputRef.current.click()
-                }
-              }}
-              className="w-full p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm hover:bg-amber-100 transition-colors flex items-center justify-between font-medium text-left shadow-sm"
+            <label
+              htmlFor="native-camera-input"
+              className="w-full p-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm hover:bg-amber-100 transition-colors flex items-center justify-between font-medium text-left shadow-sm cursor-pointer"
             >
               <div className="flex items-start gap-2.5">
                 <span className="text-lg leading-none mt-0.5">⚠️</span>
@@ -459,12 +458,13 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 </div>
               </div>
               <span className="text-xs bg-amber-200/60 text-amber-900 px-2 py-1 rounded font-bold uppercase shrink-0">Open Camera</span>
-            </button>
+            </label>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
             {/* Trigger In-App Camera Stream */}
-            <div
+            <label
+              htmlFor="native-camera-input"
               onClick={handleCameraClick}
               className={`flex flex-col items-center justify-center gap-3 p-8 rounded-lg border border-gray-300 bg-white cursor-pointer hover:bg-gray-50 transition-colors shadow-sm ${disabled ? 'pointer-events-none opacity-50' : ''}`}
             >
@@ -478,11 +478,11 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 <p className="text-gray-900 font-semibold text-base">Use Camera Scanner</p>
                 <p className="text-gray-500 text-xs mt-0.5">Captures & crops for premium VLM parsing</p>
               </div>
-            </div>
+            </label>
 
             {/* Trigger File Browse/Drag-and-Drop */}
-            <div
-              onClick={handleFileClick}
+            <label
+              htmlFor="native-file-input"
               onDrop={onDrop}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
@@ -500,11 +500,12 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 <p className="text-gray-900 font-semibold text-base">Upload Files</p>
                 <p className="text-gray-500 text-xs mt-0.5">Select image or PDF files under 10MB</p>
               </div>
-            </div>
+            </label>
           </div>
 
           {/* Native mobile camera fallback input (hidden) */}
           <input 
+            id="native-camera-input"
             type="file" 
             ref={cameraInputRef}
             accept="image/*" 
@@ -517,6 +518,7 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
 
           {/* Hidden File Input */}
           <input 
+            id="native-file-input"
             type="file" 
             ref={fileInputRef}
             multiple 
