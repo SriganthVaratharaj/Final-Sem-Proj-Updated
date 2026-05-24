@@ -69,24 +69,17 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
   }
 
   // --- Live Camera Scanner Methods ---
-  // --- Live Camera Scanner Methods ---
-  const handleCameraClick = (e) => {
-    if (disabled) {
-      e.preventDefault()
-      return
-    }
+  const handleCameraClick = () => {
+    if (disabled) return
 
     // Check if secure context and getUserMedia are supported
     const isSecure = window.isSecureContext
     const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 
     if (isSecure && hasGetUserMedia) {
-      // Prevent label click from triggering native file picker; use live video
-      e.preventDefault()
       startCamera()
     } else {
-      // Allow default label click to trigger the native file selector synchronously!
-      setCameraError("Live camera scanner requires a secure HTTPS connection. Opening native camera fallback...")
+      setCameraError("Live camera scanner requires a secure HTTPS connection. Tap the alert banner below to use your native device camera.")
     }
   }
 
@@ -463,8 +456,7 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
 
           <div className="grid gap-4 md:grid-cols-2">
             {/* Trigger In-App Camera Stream */}
-            <label
-              htmlFor="native-camera-input"
+            <div
               onClick={handleCameraClick}
               className={`flex flex-col items-center justify-center gap-3 p-8 rounded-lg border border-gray-300 bg-white cursor-pointer hover:bg-gray-50 transition-colors shadow-sm ${disabled ? 'pointer-events-none opacity-50' : ''}`}
             >
@@ -478,7 +470,7 @@ export default function CaptureScreen({ onSubmit, disabled, error }) {
                 <p className="text-gray-900 font-semibold text-base">Use Camera Scanner</p>
                 <p className="text-gray-500 text-xs mt-0.5">Captures & crops for premium VLM parsing</p>
               </div>
-            </label>
+            </div>
 
             {/* Trigger File Browse/Drag-and-Drop */}
             <label
