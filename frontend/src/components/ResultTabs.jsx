@@ -288,12 +288,7 @@ export function ResultCard({ result, defaultOpen }) {
                 </div>
               )}
             </div>
-          )}o">
-                  {translatedText}
-                </pre>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>
