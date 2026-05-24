@@ -1,14 +1,50 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import CaptureScreen from '../components/screens/CaptureScreen'
 import ProcessingScreen from '../components/screens/ProcessingScreen'
 import ResultsScreen from '../components/screens/ResultsScreen'
 import { useSSEStream } from '../hooks/useSSEStream'
 import { useAuth } from '../context/AuthContext'
-import { getFileUrl } from '../services/api'
+import { getFileUrl, fetchHistory } from '../services/api'
 
 export default function HomePage() {
   const { uploading, processing, stages, results, error, done, process, reset, activeJobId } = useSSEStream()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
+  
+  const [history, setHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [selectedHistoryResult, setSelectedHistoryResult] = useState(null)
+
+  const loadHistory = useCallback(() => {
+    if (!token) return
+    setLoadingHistory(true)
+    fetchHistory(20, token)
+      .then(data => {
+        setHistory(data.results || [])
+      })
+      .catch(err => console.error("Failed to load history:", err))
+      .finally(() => setLoadingHistory(false))
+  }, [token])
+
+  useEffect(() => {
+    if (user && token) {
+      loadHistory()
+    } else {
+      setHistory([])
+      setSelectedHistoryResult(null)
+    }
+  }, [user, token, loadHistory])
+
+  const isProcessing = uploading || processing
+  const isDone = (done && results && results.length > 0) || !!selectedHistoryResult
+  const displayResults = selectedHistoryResult ? [selectedHistoryResult] : results
+
+  // Refresh history list when a new upload successfully completes
+  useEffect(() => {
+    const freshDone = done && results && results.length > 0
+    if (freshDone) {
+      loadHistory()
+    }
+  }, [done, results, loadHistory])
 
   useEffect(() => {
     if (user || !activeJobId) return;
@@ -31,8 +67,14 @@ export default function HomePage() {
     }
   }, [user, activeJobId])
 
-  const isProcessing = uploading || processing
-  const isDone = done && results && results.length > 0
+  const handleReset = () => {
+    setSelectedHistoryResult(null)
+    reset()
+  }
+
+  const handleViewHistoryItem = (item) => {
+    setSelectedHistoryResult(item)
+  }
 
   const stageKeys = Object.keys(stages)
   const activeImageNumber = stageKeys.length > 0 ? stageKeys[stageKeys.length - 1] : 1
@@ -55,11 +97,63 @@ export default function HomePage() {
 
       {isDone && (
         <ResultsScreen
-          results={results}
+          results={displayResults}
           error={error}
-          onReset={reset}
+          onReset={handleReset}
         />
+      )}
+
+      {/* History panel visible below upload scanner for logged-in users */}
+      {!isProcessing && !isDone && user && (
+        <section className="glass p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-1 bg-gray-900 rounded-full"></div>
+            <h2 className="text-lg font-bold text-gray-900">Your Extraction History</h2>
+          </div>
+          {loadingHistory ? (
+            <p className="text-sm text-gray-500 animate-pulse">Loading history...</p>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-gray-500">No past extractions found. Upload an invoice to get started!</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead>
+                  <tr className="border-b border-gray-200 text-xs font-bold uppercase text-gray-500">
+                    <th className="py-2.5">File Name</th>
+                    <th className="py-2.5">Classification</th>
+                    <th className="py-2.5">Date</th>
+                    <th className="py-2.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {history.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 font-medium text-gray-900 max-w-[200px] truncate" title={item.image_name}>
+                        {item.image_name}
+                      </td>
+                      <td className="py-3 capitalize">
+                        {item.metadata?.classification || 'Document'}
+                      </td>
+                      <td className="py-3 text-xs text-gray-500">
+                        {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => handleViewHistoryItem(item)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
+                        >
+                          View Results
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
     </main>
   )
 }
+
