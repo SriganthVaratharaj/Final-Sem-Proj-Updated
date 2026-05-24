@@ -178,24 +178,43 @@ The visual reasoning engine natively supports and translates **14+ Indian Langua
 ---
 
 ## 🛠️ Project Structure
-
-```text
-Final-Sem-Proj-Updated/
-├── backend/
-│   ├── main.py                    # FastAPI entry point
-│   ├── pipeline.py                # Image orchestration and Kaggle dispatcher
-│   ├── config.py                  # API endpoints and system configurations
-│   ├── vlm/
-│   │   ├── vlm_model.py           # Master Prompt engineering & JSON parsing
-│   │   └── gguf_engine.py         # Cloudflare tunnel REST client
-│   └── utils/
-│       ├── image_enhancer.py      # CLAHE algorithms & image splitting
-│       ├── layout_template.py     # Schema standardization algorithms
-│       └── export.py              # System export logic
-├── frontend/                      # React-based UI mapping extraction results
-├── .env                           # Cloudflare & API configuration
-└── README.md
-```
+ 
+ ```text
+ Final-Sem-Proj-Updated/
+ ├── backend/
+ │   ├── main.py                    # FastAPI entry point & API route mapping
+ │   ├── pipeline.py                # Image orchestration & remote worker dispatcher
+ │   ├── config.py                  # Central configuration & VLM parameters
+ │   ├── auth/
+ │   │   └── routes.py              # User authentication, JWT tokens & routes
+ │   ├── db/
+ │   │   ├── connection.py          # MongoDB client lazily-loaded instance connection
+ │   │   ├── auth_repository.py     # User creation and query error handlers (503 status code)
+ │   │   └── repository.py          # Invoice CRUD queries & regex text searches
+ │   ├── vlm/
+ │   │   ├── vlm_model.py           # VLM Prompts, dynamic translation & digital twin mapping
+ │   │   └── gguf_engine.py         # Cloudflare remote worker REST client
+ │   └── utils/
+ │       ├── image_enhancer.py      # Local pre-processing (CLAHE & Tall split logic)
+ │       ├── layout_template.py     # Standardized JSON field schemas (mapping vernacular -> English)
+ │       └── export.py              # Document output compile helpers (.xlsx, .json, .txt)
+ ├── frontend/
+ │   ├── src/
+ │   │   ├── components/            
+ │   │   │   ├── Dashboard.jsx      # SVG Chart Analytics & case-insensitive keyword searches
+ │   │   │   ├── AuthModal.jsx      # Token validations, signup hints & fetch safety
+ │   │   │   └── ResultTabs.jsx     # Digital Twin renders, raw templates & downloads
+ │   │   └── context/
+ │   │       └── AuthContext.jsx    # Client-side user auth state & session storage
+ ├── PROJECT_FLOW.md                # Comprehensive step-by-step pipeline execution flow (Mermaid diagrams)
+ ├── .env                           # API and database environment keys
+ └── README.md                      # General system overview & core algorithmic explanations
+ ```
+ 
+ ---
+ 
+ ## 📖 Pipeline Flow Documentation
+ For a highly detailed step-by-step description of the data extraction lifecycle (visual cropping, server-sent heartbeat events, remote Kaggle node locks, and translation merging), refer to [PROJECT_FLOW.md](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti%20/Updated%20Final%20Year%20Project/PROJECT_FLOW.md).
 
 ---
 
