@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getFileUrl } from '../services/api'
 
 const SOURCE_META = {
   kaggle_remote_vlm: { label: 'Kaggle Qwen2.5-VL-32B (Remote Tunnel)', tier: '30GB VRAM' },
@@ -62,6 +63,62 @@ export function ResultCard({ result, defaultOpen }) {
   const rawFields = result.vlm_fields || {}
   const source = result.vlm_source || 'unavailable'
   const meta = SOURCE_META[source] || SOURCE_META.unavailable
+
+  // Custom Translation State
+  const [targetLang, setTargetLang] = useState('Tamil')
+  const [translating, setTranslating] = useState(false)
+  const [translatedText, setTranslatedText] = useState(null)
+  const [translateError, setTranslateError] = useState(null)
+
+  const handleTranslate = async () => {
+    setTranslating(true)
+    setTranslateError(null)
+    try {
+      const endpoint = getFileUrl('/api/translate')
+      const textToTranslate = result.text_report_preview || rawFields.english_extraction || rawFields.full_extraction || ''
+      if (!textToTranslate.trim()) {
+        throw new Error('No text found in report preview to translate.')
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToTranslate, target_lang: targetLang })
+      })
+
+      if (!res.ok) {
+        throw new Error(`Translation failed with status ${res.status}`)
+      }
+
+      const data = await res.json()
+      setTranslatedText(data.translated_text)
+    } catch (err) {
+      console.error(err)
+      setTranslateError(err.message || 'Translation failed')
+    } finally {
+      setTranslating(false)
+    }
+  }
+
+  const handleDownloadTranslation = () => {
+    if (!translatedText) return
+    let text = `TRANSLATED EXTRACTION REPORT (${targetLang.toUpperCase()})\n`
+    text += `==============================================\n\n`
+    text += `File Name      : ${result.image_name || 'report'}\n`
+    text += `Target Language: ${targetLang}\n\n`
+    text += `==============================================\n`
+    text += translatedText + `\n`
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${result.image_name ? result.image_name.replace(/\.[^/.]+$/, "") : 'report'}_translated_${targetLang.toLowerCase()}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm">
@@ -171,6 +228,78 @@ export function ResultCard({ result, defaultOpen }) {
               </div>
             </div>
           )}
+
+          {/* Custom Translation Section */}
+          <div className="border-t border-gray-100 pt-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Custom Document Translator</h3>
+            </div>
+            <p className="text-[11px] text-gray-500">Translate the extracted document fields and values into any language using the visual reasoning engine.</p>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-600">Target Language:</span>
+                <select
+                  value={targetLang}
+                  onChange={(e) => setTargetLang(e.target.value)}
+                  className="border border-gray-300 rounded px-2.5 py-1 text-xs bg-white text-gray-800 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="Tamil">Tamil (தமிழ்)</option>
+                  <option value="Hindi">Hindi (हिन्दी)</option>
+                  <option value="Telugu">Telugu (తెలుగు)</option>
+                  <option value="Kannada">Kannada (ಕನ್ನಡ)</option>
+                  <option value="Malayalam">Malayalam (മലയാളം)</option>
+                  <option value="Bengali">Bengali (বাংলা)</option>
+                  <option value="Gujarati">Gujarati (ગુજરાતી)</option>
+                  <option value="Marathi">Marathi (मराठी)</option>
+                  <option value="Punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                  <option value="Spanish">Spanish (Español)</option>
+                  <option value="French">French (Français)</option>
+                  <option value="German">German (Deutsch)</option>
+                  <option value="Japanese">Japanese (日本語)</option>
+                  <option value="Chinese">Chinese (中文)</option>
+                </select>
+              </div>
+
+              <button
+                onClick={handleTranslate}
+                disabled={translating}
+                className="btn-primary text-xs py-1.5 px-4 rounded font-semibold shrink-0"
+              >
+                {translating ? 'Translating...' : 'Translate'}
+              </button>
+            </div>
+
+            {translating && (
+              <div className="text-xs text-indigo-600 font-semibold animate-pulse pt-1">
+                Translating report structure via remote worker node...
+              </div>
+            )}
+
+            {translateError && (
+              <div className="text-xs text-red-600 border border-red-100 bg-red-50 p-2 rounded">
+                Error: {translateError}
+              </div>
+            )}
+
+            {translatedText && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Translated Output ({targetLang})</h4>
+                  <button
+                    onClick={handleDownloadTranslation}
+                    className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold underline"
+                  >
+                    Download Translated TXT
+                  </button>
+                </div>
+                <pre className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 text-[11px] text-indigo-900 font-mono whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                  {translatedText}
+                </pre>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

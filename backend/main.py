@@ -135,6 +135,27 @@ async def filter_api(payload: dict):
     res = await asyncio.to_thread(query_local_llava, b"", f"Filter this JSON based on '{prompt}': {json.dumps(data)}", INTERNAL_MODEL_API_KEY)
     return _clean_output(res) or data
 
+@app.post("/api/translate")
+async def translate_api(payload: dict):
+    from backend.vlm.gguf_engine import query_local_llava
+    from backend.vlm.vlm_model import _clean_output
+    text = payload.get("text")
+    target_lang = payload.get("target_lang")
+    if not text or not target_lang:
+        raise HTTPException(400, detail="Both 'text' and 'target_lang' are required.")
+    
+    prompt = (
+        f"You are a professional document translator.\n"
+        f"Translate the following invoice/receipt text details into {target_lang.upper()}.\n"
+        f"Preserve the document structure, columns, alignment, and spacing exactly.\n"
+        f"Do NOT summarize, do NOT omit values or details, and do NOT add any greeting or explanation.\n"
+        f"Output ONLY the translated document:\n\n{text}"
+    )
+    
+    res = await asyncio.to_thread(query_local_llava, b"", prompt, INTERNAL_MODEL_API_KEY)
+    cleaned = _clean_output(res)
+    return {"translated_text": cleaned or res}
+
 @app.get("/api/results")
 async def history(user_email: str = Depends(get_current_user_optional)): 
     return {"results": await list_results(limit=20, user_email=user_email)}
