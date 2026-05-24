@@ -73,7 +73,17 @@ export default function HomePage() {
   }
 
   const handleViewHistoryItem = (item) => {
-    setSelectedHistoryResult(item)
+    const mapped = {
+      ...item,
+      image_name: item.file_name || item.image_name,
+      vlm_fields: item.vlm?.fields || item.vlm_fields || {},
+      vlm_source: item.vlm?.source || item.vlm_source || 'unavailable',
+      metadata: {
+        classification: item.document_type || item.metadata?.classification || 'Document',
+        detected_language: item.ocr?.language_summary?.detected_language || item.metadata?.detected_language
+      }
+    }
+    setSelectedHistoryResult(mapped)
   }
 
   const stageKeys = Object.keys(stages)
@@ -126,27 +136,33 @@ export default function HomePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {history.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 font-medium text-gray-900 max-w-[200px] truncate" title={item.image_name}>
-                        {item.image_name}
-                      </td>
-                      <td className="py-3 capitalize">
-                        {item.metadata?.classification || 'Document'}
-                      </td>
-                      <td className="py-3 text-xs text-gray-500">
-                        {item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
-                      </td>
-                      <td className="py-3 text-right">
-                        <button
-                          onClick={() => handleViewHistoryItem(item)}
-                          className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
-                        >
-                          View Results
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {history.map((item, idx) => {
+                    const name = item.file_name || item.image_name || 'unknown'
+                    const docType = item.document_type || item.metadata?.classification || 'Document'
+                    const date = item.created_at || item.timestamp
+                    
+                    return (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 font-medium text-gray-900 max-w-[200px] truncate" title={name}>
+                          {name}
+                        </td>
+                        <td className="py-3 capitalize">
+                          {docType}
+                        </td>
+                        <td className="py-3 text-xs text-gray-500">
+                          {date ? new Date(date).toLocaleString() : 'N/A'}
+                        </td>
+                        <td className="py-3 text-right">
+                          <button
+                            onClick={() => handleViewHistoryItem(item)}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-bold underline"
+                          >
+                            View Results
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
