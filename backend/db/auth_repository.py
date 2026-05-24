@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorCollection
 from passlib.context import CryptContext
+from fastapi import HTTPException
 from backend.db.connection import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -18,12 +19,27 @@ def get_password_hash(password: str) -> str:
 
 async def _users_collection() -> AsyncIOMotorCollection:
     db = get_db()
+    if db is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection is currently unavailable. Please check backend config or try again later."
+        )
     return db["users"]
 
 async def create_user(email: str, password: str) -> Dict[str, Any]:
     """Create a new user, returns user dict or raises ValueError if exists."""
-    collection = await _users_collection()
-    existing = await collection.find_one({"email": email})
+    try:
+        collection = await _users_collection()
+        existing = await collection.find_one({"email": email})
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Database error checking existing user: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection error. Please verify MongoDB connectivity or try again later."
+        )
+        
     if existing:
         raise ValueError("User already exists")
         
@@ -32,10 +48,31 @@ async def create_user(email: str, password: str) -> Dict[str, Any]:
         "email": email,
         "hashed_password": hashed_pw
     }
-    result = await collection.insert_one(user_doc)
-    user_doc["_id"] = result.inserted_id
-    return user_doc
+    
+    try:
+        result = await collection.insert_one(user_doc)
+        user_doc["_id"] = result.inserted_id
+        return user_doc
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Database error creating user: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection error. Please verify MongoDB connectivity or try again later."
+        )
 
 async def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    collection = await _users_collection()
-    return await collection.find_one({"email": email})
+    try:
+        collection = await _users_collection()
+        return await collection.find_one({"email": email})
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Database error during get_user_by_email: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection error. Please verify MongoDB connectivity or try again later."
+        )
