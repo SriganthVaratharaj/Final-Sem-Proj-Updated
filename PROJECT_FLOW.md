@@ -56,7 +56,7 @@ sequenceDiagram
     Master->>Master: Compile Exports (.xlsx, .txt, .json, .docx)
     Master->>DB: Save result mapped to user_email
     Master-->>Front: SSE JSON Event 'result' (Return output payloads)
-    Front->>User: Display Extraction, Digital Twin & isolated Analytics
+    Front->>User: Display Extraction, Digital Twin & Detailed Report
 ```
 
 ---
@@ -102,15 +102,14 @@ sequenceDiagram
     *   **Fallback-Safe Merge:** Iterates through the translated English JSON key-by-key. If a key is missing or empty, it retains the native-language value to prevent data loss.
     *   **Automatic Export compilation:** Compiles the data structures into structured `.xlsx` tables, plaintext `.txt` reports, and `.docx` word files.
 
-### 6. Mapped MongoDB History & Isolated Analytics Dashboard (Database & UI)
+### 6. Mapped MongoDB History Vault (Database & UI)
 *   **File References:**
     *   [repository.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/db/repository.py)
     *   [auth_repository.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/db/auth_repository.py)
-    *   [Dashboard.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/frontend/src/components/Dashboard.jsx)
 *   **How it works:**
     *   **User Isolation:** Database read/write queries verify the logged-in user's email signature from the request JWT token. Guest uploads are saved under a temporary guest ID and deleted from the view on session exit.
-    *   **Regex Searching:** Queries Mongo using case-insensitive regex flags (`$options: "i"`) to find keywords across filenames, languages, or vendors.
-    *   **Analytics Engine:** Aggregates database history on the client-side to render responsive, interactive SVG charts (spending trends, vendor shares, and currency charts) without external package overhead.
+    *   **Regex Searching:** Queries Mongo using case-insensitive regex flags (`$options: "i"`) to find keywords across filenames, languages, or vendors in their historical records.
+    *   **Historical Audit Table:** Displays a clean list of past successful invoice extractions with options to view their corresponding visual twin layout grids and JSON attributes immediately.
 
 ---
 

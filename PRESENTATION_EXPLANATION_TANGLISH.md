@@ -9,24 +9,24 @@ Vanakkam bro! Unga presentation-ku thevayana clear explanation intha document-la
 Namma project flow-a oru periya company-oda "Smart Receptionist" kooda compare pannalam.
 
 1. **Input Stage (Document Upload):**
-   - **Analogy:** Company-ku neraya post, courier, bills, and velaiku aal edukura resumes varuthu. Receptionist kitta ithu ellathayum kodukurom.
-   - **Namma Project-la:** User vanthu invoices (bills), resumes, illana verum images-a namma system-la upload pandranga.
+   - **Analogy:** Company-ku neraya post, courier, bills, and purchase receipts varuthu. Receptionist kitta ithu ellathayum kodukurom.
+   - **Namma Project-la:** User vanthu invoices (bills), thermal receipts, illana verum images-a namma system-la upload pandranga.
 
 2. **Classification (Enna Document Ithu?):**
-   - **Analogy:** Receptionist antha papers-a pathathum, "Oh, ithu bill, ithu resume, ithu general letter" nu thani thaniya pirichi veppanga.
-   - **Namma Project-la:** Namma AI model muthalla vanthu upload aana image/document invoice-a illana resume-a nu kandupudikum.
+   - **Analogy:** Receptionist antha papers-a pathathum, "Oh, ithu formal company invoice, ithu supermarket thermal receipt" nu thani thaniya pirichi veppanga.
+   - **Namma Project-la:** Namma AI model muthalla vanthu upload aana image/document invoice-a illana receipt-a nu kandupudikum.
 
 3. **Processing Stage (OCR & Layout):**
-   - **Analogy:** Receptionist antha bill-la iruka ezhuthukkalai (text) padikranga. Tamil, English nu entha language-la irunthalum avangaluku padika theriyum. Apprm antha bill-la enga amount iruku, enga address iruku nu oru idea ku varanga.
+   - **Analogy:** Receptionist antha bill-la iruka ezhuthukkalai (text) padikranga. Tamil, English nu entha language-la irunthalum avangaluku padika theriyum. Apprm antha bill-la enga items list iruku, enga tax amount iruku nu oru layout logic diagram ku varanga.
    - **Namma Project-la:** Itha thaan OCR (Text-a read pandrathu) and Layout Analysis (Structure-a purinjikrathu) pandrathu.
 
 4. **Intelligence & Extraction (VLM - The Smart Brain):**
-   - **Analogy:** Verum padicha mattum pathathu, antha receptionist kitta boss vanthu "Intha bill-la total amount evlo, tax evlo?" nu ketta, athai correct-a thedi eduthu sollanum. Resume-a iruntha, "Ivar namma ketka job-ku set aavara?" nu check panni sollanum.
-   - **Namma Project-la:** Intha velaiya thaan VLM (Vision Language Model) and ATS Engine pakuthu. VLM vanthu document-a pathu thevayana data-va (e.g., Total Amount, Invoice Date) accurate-a extract pannum. Resume-na ATS algorithm match score-a calculate pannum.
+   - **Analogy:** Verum padicha mattum pathathu, antha receptionist kitta boss vanthu "Intha bill-la total amount evlo, GST/Tax tax evlo?" nu ketta, key-value match pairs-ah correct-a spatial structure logic vachu absolute coordinates verify panni accurate-ah report eduthu sollanum.
+   - **Namma Project-la:** Intha velaiya thaan VLM (Vision Language Model) module pakuthu. VLM vanthu document-a pathu thevayana data-va (e.g., Total Amount, Invoice Date, Merchant Name) accurate-a extract pannum.
 
 5. **Output Stage (Result Generation):**
-   - **Analogy:** Receptionist ellathayum oru neat-ana excel sheet-la type panni boss kitta report-a koduppanga.
-   - **Namma Project-la:** Namma system extract panna data-va JSON format-layo illana oru neat-ana structured format-layo output-a tharum. Athai namma UI-la display pandrom.
+   - **Analogy:** Receptionist key transaction inputs values arrays sheet-la tabular format compile panni, direct-ah digital format spreadsheet-ah report-a koduppanga.
+   - **Namma Project-la:** Namma system extract panna data-va JSON format-layo, Excel sheet (.xlsx), or direct layout-preserving plain grid "Digital Twin" txt format-layo output-a tharum. Athai namma UI-la display pandrom.
 
 ---
 
