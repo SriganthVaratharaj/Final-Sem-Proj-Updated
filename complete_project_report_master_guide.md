@@ -653,26 +653,26 @@ Delete the existing **LLM Hallucinations papers** (No. 1 to 14 in your current r
 ```text
                                REFERENCES
 
-1.  Chen, Z. et al. (2023) 'InternVL: Scaling up Vision Foundation Models and Aligning for Generic Visual-Linguistic Tasks', arXiv preprint arXiv:2312.14238.
-2.  Cui, C. et al. (2025) 'PaddleOCR-VL: Boosting Multilingual Document Parsing via a 0.9B Ultra-Compact Vision-Language Model', arXiv preprint arXiv:2510.14528.
-3.  Davis, B. et al. (2022) 'End-to-End Document Recognition and Understanding with Dessurt', Proc. ECCV Workshops, pp. 280-296.
-4.  Dosovitskiy, A. et al. (2021) 'An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale', Proc. International Conference on Learning Representations (ICLR), pp. 1-21.
-5.  Du, Y. et al. (2020) 'PP-OCR: A Practical Ultra Lightweight OCR System', arXiv preprint arXiv:2009.09941.
-6.  Huang, Y. et al. (2022) 'LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking', Proc. ACM International Conference on Multimedia (MM), pp. 4083–4091.
-7.  Bhatia, V. (2021) 'OCR challenges in Indian scripts: A survey', ACM Computing Surveys, Vol. 54, No. 2, pp. 1-35.
-8.  Kim, G. et al. (2022) 'OCR-free Document Understanding Transformer (Donut)', Proc. European Conference on Computer Vision (ECCV), pp. 498-517.
-9.  Liao, M. et al. (2020) 'Real-Time Scene Text Detection with Differentiable Binarization', Proc. AAAI Conference on Artificial Intelligence, Vol. 34, No. 7, pp. 11474-11481.
-10. Lee, K. et al. (2023) 'Pix2Struct: Screenshot Parsing as Pretraining for Visual Language Understanding', Proc. International Conference on Machine Learning (ICML), pp. 18893-18912.
-11. Liu, Y. et al. (2024) 'TextMonkey: An OCR-Free Large Multimodal Model for Understanding Document', arXiv preprint arXiv:2403.04473.
-12. Pizer, S. M. et al. (1987) 'Adaptive Histogram Equalization and Its Variations', Computer Vision, Graphics, and Image Processing, Vol. 39, No. 3, pp. 355–368.
-13. Qwen Team (2023) 'Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading and Beyond', arXiv preprint arXiv:2308.12966.
-14. Smith, R. (2007) 'An Overview of the Tesseract OCR Engine', Proc. International Conference on Document Analysis and Recognition (ICDAR), pp. 629-633.
-15. Tang, Z. et al. (2023) 'Unifying Vision, Text, and Layout for Universal Document Processing (UDOP)', Proc. IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pp. 19254-19264.
-16. Vaswani, A. et al. (2017) 'Attention is All you Need', Advances in Neural Information Processing Systems (NeurIPS), Vol. 30, pp. 5998–6008.
-17. Wei, J. et al. (2022) 'Chain-of-Thought Prompting Elicits Reasoning in Large Language Models', Advances in Neural Information Processing Systems (NeurIPS), Vol. 35, pp. 24824-24837.
-18. Xu, Y. et al. (2020) 'LayoutLM: Pre-training of Text and Layout for Document Image Understanding', Proc. ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp. 1192–1200.
-19. Xu, Y. et al. (2021) 'LayoutLMv2: Multi-modal Pre-training for Visually-rich Document Understanding', Proc. Association for Computational Linguistics (ACL), pp. 2579–2591.
-20. Ye, Q. et al. (2023) 'mPLUG-DocOwl: Modularized Multimodal Large Language Model for Document Understanding', arXiv preprint arXiv:2307.02499.
+1.  Dosovitskiy, A. et al. (2021) 'An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale', Proc. International Conference on Learning Representations (ICLR), pp. 1-21.
+2.  Vaswani, A. et al. (2017) 'Attention is All you Need', Advances in Neural Information Processing Systems (NeurIPS), Vol. 30, pp. 5998–6008.
+3.  Qwen Team (2023) 'Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading and Beyond', arXiv preprint arXiv:2308.12966.
+4.  Xu, Y. et al. (2020) 'LayoutLM: Pre-training of Text and Layout for Document Image Understanding', Proc. ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp. 1192–1200.
+5.  Kim, G. et al. (2022) 'OCR-free Document Understanding Transformer (Donut)', Proc. European Conference on Computer Vision (ECCV), pp. 498-517.
+6.  Pizer, S. M. et al. (1987) 'Adaptive Histogram Equalization and Its Variations', Computer Vision, Graphics, and Image Processing, Vol. 39, No. 3, pp. 355–368.
+7.  Liu, Y. et al. (2024) 'TextMonkey: An OCR-Free Large Multimodal Model for Understanding Document', arXiv preprint arXiv:2403.04473.
+8.  Smith, R. (2007) 'An Overview of the Tesseract OCR Engine', Proc. International Conference on Document Analysis and Recognition (ICDAR), pp. 629-633.
+9.  Huang, Y. et al. (2022) 'LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking', Proc. ACM International Conference on Multimedia (MM), pp. 4083–4091.
+10. Chen, Z. et al. (2023) 'InternVL: Scaling up Vision Foundation Models and Aligning for Generic Visual-Linguistic Tasks', arXiv preprint arXiv:2312.14238.
+11. Du, Y. et al. (2020) 'PP-OCR: A Practical Ultra Lightweight OCR System', arXiv preprint arXiv:2009.09941.
+12. Tang, Z. et al. (2023) 'Unifying Vision, Text, and Layout for Universal Document Processing (UDOP)', Proc. IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pp. 19254-19264.
+13. Davis, B. et al. (2022) 'End-to-End Document Recognition and Understanding with Dessurt', Proc. ECCV Workshops, pp. 280-296.
+14. Lee, K. et al. (2023) 'Pix2Struct: Screenshot Parsing as Pretraining for Visual Language Understanding', Proc. International Conference on Machine Learning (ICML), pp. 18893-18912.
+15. Wei, J. et al. (2022) 'Chain-of-Thought Prompting Elicits Reasoning in Large Language Models', Advances in Neural Information Processing Systems (NeurIPS), Vol. 35, pp. 24824-24837.
+16. Xu, Y. et al. (2021) 'LayoutLMv2: Multi-modal Pre-training for Visually-rich Document Understanding', Proc. Association for Computational Linguistics (ACL), pp. 2579–2591.
+17. Ye, Q. et al. (2023) 'mPLUG-DocOwl: Modularized Multimodal Large Language Model for Document Understanding', arXiv preprint arXiv:2307.02499.
+18. Bhatia, V. (2021) 'OCR challenges in Indian scripts: A survey', ACM Computing Surveys, Vol. 54, No. 2, pp. 1-35.
+19. Liao, M. et al. (2020) 'Real-Time Scene Text Detection with Differentiable Binarization', Proc. AAAI Conference on Artificial Intelligence, Vol. 34, No. 7, pp. 11474-11481.
+20. Cui, C. et al. (2025) 'PaddleOCR-VL: Boosting Multilingual Document Parsing via a 0.9B Ultra-Compact Vision-Language Model', arXiv preprint arXiv:2510.14528.
 
 ```
 
