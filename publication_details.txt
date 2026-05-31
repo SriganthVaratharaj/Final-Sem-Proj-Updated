@@ -1,0 +1,13 @@
+C. PUBLICATION:
+
+The project titled “Multimodal Document Intelligence System for Invoice and Receipt Processing Using Vision-Language Models with Layout-Aware OCR” by Dr. P. Nandhini, Sriganth G V, Jayasimbu J, Aadhiseshan S, and Remo V has been submitted and is currently under consideration for publication in the International Journal on Document Analysis and Recognition (IJDAR) published by Springer Nature.
+
+The project focuses on developing an OCR-free, pixel-level visual understanding system for complex financial documents using the Qwen2.5-VL-32B model, utilizing local CLAHE preprocessing, dynamic overlap splitting, and Cloudflare-tunnelled remote GPU workers. The system was developed using Python, React.js, FastAPI, MongoDB, and Llama.cpp.
+
+Journal Submission Details:
+
+*   Journal: International Journal on Document Analysis and Recognition (IJDAR)
+*   Publisher: Springer Nature
+*   Submission ID: cf3c04f7-4f6a-474c-a011-0bb1caf7c561
+*   Preprint RSID: rs-9731470 (Research Square)
+*   Status: Under Consideration (Technical Check Stage)

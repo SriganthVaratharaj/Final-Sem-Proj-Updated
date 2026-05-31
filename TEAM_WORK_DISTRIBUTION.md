@@ -1,115 +1,95 @@
-# 👥 Team Work Distribution - Multimodal Document Intelligence System
+# 👥 Updated Team Work Distribution - Multimodal Document Intelligence System
 
-Intha document-la namma project team members (4 members) oda individually divided modules, detailed explanations, backend/frontend files name, and exact code line ranges reference-ah clear-ah **Tanglish-la** explain panniruku. External Review and Viva-ku prepare panna intha details romba helpful-ah irukum.
+Intha document-la namma project team members (4 members) oda individually divided modules, backend/frontend folders list, detailed line count explanations, core concepts, and **Viva Defense Guidelines** (external reviewer questions face panna help aagura points) clear-ah **Tanglish-la** compiler panni write panni iruku.
 
 ---
 
 ## 👨‍💻 1. AADHISESHAN S (732722104001)
 ### **Role: Frontend Developer & UI Specialist**
 
-*   **Detailed Role Overview:**
-    Frontend layout design, components, user actions, responsive structure, and page state controls full-ah control panrathu intha profile thaan. React and Tailwind CSS use panni, visually stunning layout and mobile-first responsive screens flow setup panni irukaaru.
+*   **Assigned Source Files:**
+    1.  [Dashboard.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/Dashboard.jsx) (478 Lines)
+    2.  [ResultTabs.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/ResultTabs.jsx) (310 Lines)
+    3.  [CaptureScreen.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/CaptureScreen.jsx) (244 Lines)
+    4.  [AuthModal.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/AuthModal.jsx) (155 Lines)
+    5.  [VlmTab.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/VlmTab.jsx) (114 Lines)
+    6.  [ExportsTab.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/ExportsTab.jsx) (108 Lines)
+    7.  [UploadZone.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/UploadZone.jsx) (76 Lines)
+    8.  [HomePage.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/HomePage.jsx) (160 Lines)
+    9.  [DigitalTwinTab.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/DigitalTwinTab.jsx) (40 Lines)
+    10. [api.js](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/api.js) (53 Lines)
+    11. [AuthContext.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/AADHISESHAN%20S/AuthContext.jsx) (50 Lines)
 
-*   **Modules Covered & Code References:**
-    *   **Main Home Page Layout & SSE Setup:**
-        *   **File Path:** [HomePage.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/frontend/src/pages/HomePage.jsx)
-        *   **Code Lines:** `HomePage` functional component (Lines 9-160)
-        *   **Detailed Tanglish Explanation:** Application launch aanathum user paakura dashboard interface, drag-and-drop file upload component intha code-la thaan structure panni irukaaru. Server background processes state coordinates (Processing, Success, Logs, error) receive panna Server-Sent Events (SSE) active events handler intha component dynamic state variables hook use panni, UI-ah automatic re-render stream panna setup controller logic-ah code panni irukaaru.
-    *   **In-App Camera Scanner & Gallery Upload:**
-        *   **File Path:** [CaptureScreen.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/frontend/src/components/screens/CaptureScreen.jsx)
-        *   **Code Lines:** Camera setup and controls: `startCamera`, `stopCamera`, `capturePhoto` (Lines 86-141)
-        *   **Detailed Tanglish Explanation:** Physical document or bill copies camera lens direct capture panna client browser WebRTC standard base media devices stream parameters controllers vachu camera feed capture script setup panni irukaaru. Render stream clicks input photo capture logic pixel data format dynamic canvas control feed convert workflow set panni irukaaru.
-    *   **Locked Touch Cropping Selection:**
-        *   **File Path:** [CaptureScreen.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/frontend/src/components/screens/CaptureScreen.jsx)
-        *   **Code Lines:** Cropping handlers: `handleDragStart`, `handleDragMove`, `handleCropConfirm` (Lines 150-244)
-        *   **Detailed Tanglish Explanation:** Users camera capture panni crop selection boundaries mouse drag custom pointer movement nodes screen dynamic coordinate points map structure parameters calculations track logic coding panni coordinates server input feed structures structure panni pixel processing target control build panni irukaaru.
-    *   **Results Card Details Rendering:**
-        *   **File Path:** [ResultTabs.jsx](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/frontend/src/components/ResultTabs.jsx)
-        *   **Code Lines:** `ResultCard` element details card (Lines 123-296)
-        *   **Detailed Tanglish Explanation:** Visual logic parser return results layout formatting tabular displays side-by-side elements custom dynamic tabs design control setup intha section thaan build panni design premium UI look display elements configure execute setup panni irukaaru.
+*   **Core Concepts Handled:**
+    *   **In-App Media Stream Scanner:** HTML5 Canvas element optimization logic camera feed preview standard code set panni device hang prevent panna WebRTC controller frame grab.
+    *   **Viewport-Locked Cropper:** Drag crop screen nodes coordinates pixels calculation dynamic CSS logic touch-action pointer track structure.
+    *   **Dashboard Financial Analytics:** Grouping expense metrics, monthly SVG scale chart rendering parameters, dynamic search filters.
+
+*   **💡 Viva Defense Pointers (Enna sollanum?):**
+    > *"Sir, I designed the complete client-side architecture using React. I implemented the in-app scanner using standard WebRTC APIs, optimizing device memory by capturing frames directly onto canvas rather than launching default camera applications. I also built the modular routing tabs and custom spending analytics dashboards utilizing standard CSS without relying on heavy chart libraries."*
 
 ---
 
 ## 👨‍💻 2. JAYASIMBU J (732722104018)
 ### **Role: Local Master Backend & Preprocessing Engineer**
 
-*   **Detailed Role Overview:**
-    Local server routing controls setup, OpenCV computer vision algorithms logic implementations, raw image scaling contrast enhancements scripts, Indic document layouts split mapping modules, and Excel compiled data generation modules local structures engineer.
+*   **Assigned Source Files:**
+    1.  [image_enhancer.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/image_enhancer.py) (416 Lines)
+    2.  [layout_template.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/layout_template.py) (280 Lines)
+    3.  [report_generator.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/report_generator.py) (168 Lines)
+    4.  [pdf_converter.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/pdf_converter.py) (65 Lines)
+    5.  [export.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/export.py) (49 Lines)
+    6.  [image_optimizer.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/image_optimizer.py) (14 Lines)
+    7.  [main.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/JAYASIMBU%20J/main.py) (Upload/API route logic)
 
-*   **Modules Covered & Code References:**
-    *   **FastAPI Local Master Orchestration API:**
-        *   **File Path:** [main.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/main.py)
-        *   **Code Lines:** Routes declarations: `/api/upload` (Lines 61-73), `/api/stream/{job_id}` (Lines 75-128), and `/api/translate` (Lines 138-161)
-        *   **Detailed Tanglish Explanation:** Backend server API controllers design endpoints upload pipeline initialization process background trigger modules parameters maps route handlers backend process controllers core coding file logic build setup.
-    *   **CLAHE Contrast Enhancer:**
-        *   **File Path:** [image_enhancer.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/utils/image_enhancer.py)
-        *   **Code Lines:** `enhance_for_vlm` function (Lines 40-70)
-        *   **Detailed Tanglish Explanation:** Image document scanning low light shadows pixel parameters contrast levels standard enhance logic-ku OpenCV adaptive threshold base histogram normalization CLAHE functions parameters logic custom grid mapping enhance processing coding compile panni set panni irukaaru.
-    *   **Dynamic Tall Split Module:**
-        *   **File Path:** [image_enhancer.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/utils/image_enhancer.py)
-        *   **Code Lines:** `split_for_extraction` and `split_dual_invoice` (Lines 11-38, 72-108)
-        *   **Detailed Tanglish Explanation:** Tall recipes long bills documents vertical pixels size analyzer layout trace boundaries coordinate points overlapping regions blocks-ah partition logic setup pixel slices crop background process backend functions loop execute array compile parameters structure coding.
-    *   **Fuzzy Template Mapping:**
-        *   **File Path:** [layout_template.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/utils/layout_template.py)
-        *   **Code Lines:** `map_to_standard_template` and `_find_value` (Lines 30-70)
-        *   **Detailed Tanglish Explanation:** Different document layout types standard parameters list database schemas fields mapping name matching string tokens score calculations custom fuzzy string search algorithm build keys map values compiler backend maps structure script compile function setup.
-    *   **Excel Export Compilation:**
-        *   **File Path:** [export.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/utils/export.py)
-        *   **Code Lines:** `export_to_excel` function (Lines 20-80)
-        *   **Detailed Tanglish Explanation:** Raw results data arrays pandas dataframe key maps columns sorting excel format custom layout writing outputs compiler files local device storage directory path output setups script controllers execution setup.
+*   **Core Concepts Handled:**
+    *   **OpenCV CLAHE Matrix Enhancement:** Histogram normalization logic shadows binarization errors prevent math logic block calculation.
+    *   **Dual Tall Receipt Splitting:** Aspect ratio calculations margins overlapping checks tall receipts automatic splitting parameters coordinates mapping.
+    *   **PDF to Image Conversion:** PyMuPDF integration to render PDF files as PNG layout frames before backend processing.
+    *   **Fuzzy Template Layout Mapper:** Keyword alias maps calculations using fuzzy matches.
+
+*   **💡 Viva Defense Pointers (Enna sollanum?):**
+    > *"Sir, my module is responsible for the entire Data Preprocessing and Export Compilation. I implemented Adaptive threshold (CLAHE) in OpenCV to handle faded ink on thermal prints, and developed a split-and-merge overlap logic for long invoices to fit them within model limits. I also built the template engine that maps raw OCR extraction keys to standard schema grids."*
 
 ---
 
 ## 👨‍💻 3. REMO V (732722104047)
 ### **Role: Database, Authentication & Security Developer**
 
-*   **Detailed Role Overview:**
-    MongoDB Atlas system configuration and database architecture setup, backend authorization token route policies, user logins sessions data records collection validation schema setups, password hashing validation scripts security integrations coding.
+*   **Assigned Source Files:**
+    1.  [repository.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/repository.py) (153 Lines)
+    2.  [auth_repository.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/auth_repository.py) (83 Lines)
+    3.  [routes.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/routes.py) (87 Lines)
+    4.  [connection.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/connection.py) (76 Lines)
+    5.  [models.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/models.py) (85 Lines)
+    6.  [schemas.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/REMO%20V/schemas.py) (83 Lines)
 
-*   **Modules Covered & Code References:**
-    *   **MongoDB Atlas Schema Models:**
-        *   **File Path:** [models.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/db/models.py)
-        *   **Code Lines:** `make_invoice_document` dictionary constructor (Lines 12-84)
-        *   **Detailed Tanglish Explanation:** Document fields structure dictionary validations rules setup collections indexes coordinates schema model logic definitions parameters config database entries dynamic setup compiler definitions.
-    *   **JWT Token Authorization Routing:**
-        *   **File Path:** [routes.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/auth/routes.py)
-        *   **Code Lines:** Endpoints: `get_current_user_optional` (Lines 20-29), `login` (Lines 48-69), and `register` (Lines 71-87)
-        *   **Detailed Tanglish Explanation:** Web login register security JWT web cookies parse extraction verification user identity checks session types active verification dynamic routing backend endpoints code validations compiler functions setup.
-    *   **Direct Bcrypt Security Integration:**
-        *   **File Path:** [auth_repository.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/db/auth_repository.py)
-        *   **Code Lines:** `hash_password`, `verify_password`, and `create_user` (Lines 10-60)
-        *   **Detailed Tanglish Explanation:** Password safe hashing and matching algorithm verification. External passlib helper crash errors protect logic standard direct bcrypt methods salt generators verification setup code security module controller repository compiling.
-    *   **Email Validation Casing Normalization:**
-        *   **File Path:** [routes.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/auth/routes.py)
-        *   **Code Lines:** Email casing strip lower in route flows: lines 50, 73
-        *   **Detailed Tanglish Explanation:** Database email search filters mismatch bypass user input errors registers blockage check lowercase normal transformations logic auth flow integrations checks.
+*   **Core Concepts Handled:**
+    *   **Secure Bcrypt Hashing:** Passlib dependencies block errors clear direct bcrypt methods using dynamic salt hashing validation.
+    *   **MongoDB Atlas Repository & Queries:** Regex query patterns (`$options: "i"`) keyword mapping queries history storage search.
+    *   **Pydantic Input Validations:** Custom schemas to validate inputs, intercept malicious queries, and restrict request sizes.
+
+*   **💡 Viva Defense Pointers (Enna sollanum?):**
+    > *"Sir, I designed the secure data layer. I created the MongoDB database interface, including repository operations, collection query routing and indexing configuration for fast search. For security, I implemented user session tokens using JWT standards and password storage protection using secure salt-hashing via Bcrypt libraries."*
 
 ---
 
 ## 👨‍💻 4. SRIGANTH GV (732722104056)
 ### **Role: System Architect, Remote GPU & Integration Lead**
 
-*   **Detailed Role Overview:**
-    System architecture design, backend-frontend pipeline links setup, remote GPU worker inference API connections control, SSE connections timeout protect systems, models input parameters configurations integration architect.
+*   **Assigned Source Files:**
+    1.  [pipeline.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/pipeline.py) (169 Lines)
+    2.  [vlm_model.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/vlm_model.py) (353 Lines)
+    3.  [gguf_engine.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/gguf_engine.py) (270 Lines)
+    4.  [config.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/config.py) (148 Lines)
+    5.  [Dockerfile](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/Dockerfile) (31 Lines)
+    6.  [main.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/SRIGANTH%20GV/main.py) (FastAPI heartbeats SSE streaming and VLM settings)
 
-*   **Modules Covered & Code References:**
-    *   **Pipeline Orchestration Flow:**
-        *   **File Path:** [pipeline.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/pipeline.py)
-        *   **Code Lines:** `run_pipeline` function (Lines 20-169)
-        *   **Detailed Tanglish Explanation:** Complete extraction workflow: local files processing setup triggers, multi-language easyocr ocr modules execution, layout region analysis setup, remote VLM server prompt request parameters mapping compiler pipeline coordinator script flow logic code compiler setup.
-    *   **Remote VLM Inference Request & Lock Serialization:**
-        *   **File Path:** [gguf_engine.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/vlm/gguf_engine.py)
-        *   **Code Lines:** Locks wrapping: `query_local_llava` (Lines 160-163) and `_query_local_llava_impl` (Lines 165-212)
-        *   **Detailed Tanglish Explanation:** Remote model api links configuration. Multiple requests concurrent access backend crashes protect threads semaphores serial locking queues async background logic coding.
-    *   **Dynamic Endpoint Settings:**
-        *   **File Path:** [main.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/main.py)
-        *   **Code Lines:** `/api/settings/vlm_url` (Lines 175-232)
-        *   **Detailed Tanglish Explanation:** Tunnel URL changes updates dynamic settings configuration parameters dynamically change active VLM target URL dynamic storage database routes operations script coding controls.
-    *   **SSE Streaming Heartbeats Loop:**
-        *   **File Path:** [main.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/main.py)
-        *   **Code Lines:** Stream endpoint: `/api/stream/{job_id}` (Lines 75-128)
-        *   **Detailed Tanglish Explanation:** Processing runs background pipeline execution backend proxies timeouts close prevent SSE connection write loops constant keep-alive message packets yield script control coding.
-    *   **Dummy Image Translation Fallback:**
-        *   **File Path:** [gguf_engine.py](file:///e:/Desktop/Antigravity/Final%20Sem%20Project%20Anti/Updated%20Final%20Year%20Project/backend/vlm/gguf_engine.py)
-        *   **Code Lines:** 1x1 base64 GIF injection logic (Lines 173-176)
-        *   **Detailed Tanglish Explanation:** Text only translation requests remote Qwen/MiniCPM engines images required decode parameter missing crash prevent. 1x1 mock transparent base64 image bytes inject logic translation safety fallback solution setup.
+*   **Core Concepts Handled:**
+    *   **Master-Worker Distributed Orchestration:** Cloudflare tunnel proxies settings integration local backend connects Kaggle GPU worker node APIs.
+    *   **SSE Streaming Keep-Alive Loops:** Terminate requests prevent timeouts SSE keep-alive heartbeats `: ping\n\n` packet headers control parameters loop.
+    *   **Model Request Thread Lock:** Semaphore wrapping multi-threads concurrency crash controls.
+    *   **VLM Prompt Layout Engineering:** System prompts designs markdown tables visual representation settings logic.
+
+*   **💡 Viva Defense Pointers (Enna sollanum?):**
+    > *"Sir, I designed the system architecture. I implemented a Master-Worker architecture that routes visual extraction tasks to remote GPU workers via secure API tunnels. I built the Server-Sent Events (SSE) stream endpoints with custom keep-alive heartbeat controls to prevent network timeouts, and designed the Visual Prompt Templates to constrain the VLM output into structured layout formats."*

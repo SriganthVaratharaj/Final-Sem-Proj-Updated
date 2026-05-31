@@ -1,0 +1,52 @@
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://sriganthvaratharaj-invoice-ai-backend.hf.space'
+const BASE = `${API_URL}/api`
+
+export const getFileUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_URL}${url}`
+}
+
+export const uploadFiles = async (files, token = null) => {
+  const form = new FormData()
+  for (const file of files) form.append('files', file)
+  
+  const headers = { 'Content-Type': 'multipart/form-data' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const { data } = await axios.post(`${BASE}/upload`, form, { headers })
+  return data
+}
+
+export const processFiles = async (files) => {
+  const form = new FormData()
+  for (const file of files) form.append('files', file)
+  const { data } = await axios.post(`${BASE}/process`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export const fetchHistory = async (limit = 20, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { data } = await axios.get(`${BASE}/results?limit=${limit}`, { headers })
+  return data
+}
+
+export const deleteHistoryItem = async (id, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  await axios.delete(`${BASE}/results/${id}`, { headers })
+}
+
+export const searchHistory = async (q, token = null) => {
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const { data } = await axios.get(`${BASE}/results/search?q=${encodeURIComponent(q)}`, { headers })
+  return data
+}
+
+export const getStreamUrl = (jobId) => `${BASE}/stream/${jobId}`

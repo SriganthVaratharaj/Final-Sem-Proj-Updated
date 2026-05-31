@@ -1,115 +1,159 @@
-# Project Explanation in Tanglish (For Presentation)
+# 🎓 VIVA & Presentation Explanation Guide: Multimodal Document Intelligence System (MDIS)
 
-Vanakkam bro! Unga presentation-ku thevayana clear explanation intha document-la iruku. Itha nalla padichu purinjikitinga na, yar kekra kelvikum mass-a pathil sollalam.
+Indha guide ungaloda **Project Viva-Voce** and **Final Presentation**-ku thevaiyana full explanations-ah **Tanglish (using English characters)** and **Professional English**-la kudukudhu. 
 
-## 1. Overall Project Flow (Real-World Example)
-
-**Real World Example: Oru Smart Receptionist / Assistant in a Big Company**
-
-Namma project flow-a oru periya company-oda "Smart Receptionist" kooda compare pannalam.
-
-1. **Input Stage (Document Upload):**
-   - **Analogy:** Company-ku neraya post, courier, bills, and purchase receipts varuthu. Receptionist kitta ithu ellathayum kodukurom.
-   - **Namma Project-la:** User vanthu invoices (bills), thermal receipts, illana verum images-a namma system-la upload pandranga.
-
-2. **Classification (Enna Document Ithu?):**
-   - **Analogy:** Receptionist antha papers-a pathathum, "Oh, ithu formal company invoice, ithu supermarket thermal receipt" nu thani thaniya pirichi veppanga.
-   - **Namma Project-la:** Namma AI model muthalla vanthu upload aana image/document invoice-a illana receipt-a nu kandupudikum.
-
-3. **Processing Stage (OCR & Layout):**
-   - **Analogy:** Receptionist antha bill-la iruka ezhuthukkalai (text) padikranga. Tamil, English nu entha language-la irunthalum avangaluku padika theriyum. Apprm antha bill-la enga items list iruku, enga tax amount iruku nu oru layout logic diagram ku varanga.
-   - **Namma Project-la:** Itha thaan OCR (Text-a read pandrathu) and Layout Analysis (Structure-a purinjikrathu) pandrathu.
-
-4. **Intelligence & Extraction (VLM - The Smart Brain):**
-   - **Analogy:** Verum padicha mattum pathathu, antha receptionist kitta boss vanthu "Intha bill-la total amount evlo, GST/Tax tax evlo?" nu ketta, key-value match pairs-ah correct-a spatial structure logic vachu absolute coordinates verify panni accurate-ah report eduthu sollanum.
-   - **Namma Project-la:** Intha velaiya thaan VLM (Vision Language Model) module pakuthu. VLM vanthu document-a pathu thevayana data-va (e.g., Total Amount, Invoice Date, Merchant Name) accurate-a extract pannum.
-
-5. **Output Stage (Result Generation):**
-   - **Analogy:** Receptionist key transaction inputs values arrays sheet-la tabular format compile panni, direct-ah digital format spreadsheet-ah report-a koduppanga.
-   - **Namma Project-la:** Namma system extract panna data-va JSON format-layo, Excel sheet (.xlsx), or direct layout-preserving plain grid "Digital Twin" txt format-layo output-a tharum. Athai namma UI-la display pandrom.
+*Ovvoru technical term pakkathulaiyum adhoada exact simple meaning parenthesis `(bracket)`-kula kuduthirukaean, idhu unga team members-ku romba easy-ah puriyum.*
 
 ---
 
-## 2. OCR, Layout, VLM - Eapdi Work Aaguthu? (Comparison)
+## 📽️ Part 1: Slide-by-Slide Presentation Speech Guide (Tanglish Verbal Script)
 
-Itha explain panna, unga panel kitta intha example-a sollunga. "Imagine a human trying to read a complicated, messy medical bill."
+*Ovvoru slide-ayum screen-la kaatum bodhu neenga reviewer munnala pesa வேண்டிய verbal script (English letters-la):*
 
-### A. OCR (Optical Character Recognition)
-* **Real-world Example:** Oru chinna kozhanthai kitta antha bill-a koduthu padika sonna epdi irukum? Antha kozhanthaiku ezhuthu kooti padika theriyum, aana meaning puriyathu. Athu thodarndhu ellathayum padikum - "A P P L E Hos pit al Total 5 0 0 0..." nu.
-* **Namma Project-la:** OCR athai thaan pandrathu. Image-la iruka pixels-a letters-a mathum. Enna text iruku nu kandupudikume thavira, antha text-oda meaning enna, athu eapdi align aagi iruku nu purinjikaathu. Ithu just the "EYES" of the system. (Namma PaddleOCR use pandrom).
+### Slide 1: Title Slide (Title Slide)
+> **Pesa vendiyathu:** "Respected Reviewers, Good Morning. Engaloda Final Year Project Title: **Multimodal Document Intelligence System for Invoice and Receipt Processing using Vision-Language Models with Layout-Aware OCR**. Naanga indha project-ah Dr. P. Nandhini, M.E., Ph.D., HOD/CSE avangaloada guidance-ku keela pannirkoam."
 
-### B. Layout Analysis
-* **Real-world Example:** Ippo antha bill-a oru drawing artist kitta kodukrom. Avar text-a padikka mattar. Aana, "Ithu heading, ithu oru table, ithu right corner-la iruka signature block" nu kattam (boxes) pottu tharuvaru.
-* **Namma Project-la:** Document-oda structure-a purinjikrathu thaan Layout Analysis. Endha block text heading, endha block table data nu pirikum. Ithu OCR-ku extra help pannum, correct-ana order-la text-a padikka. Ithu "GEOMETRY BOX" mathiri.
+### Slide 2: Abstract (Abstract)
+> **Pesa vendiyathu:** "Commercial documents aana invoices and receipts-la irundhu key-value pairs `(bill-la irukara Date, Total, Vendor Name pondra label and value pair)`-ah direct-ah extract panradhu thaan project goal. Traditional OCR pipelines `(palaya Tesseract character processing flow)`-la vara box errors and character errors-ah bypass panna, direct visual processing engine `(pixel variables direct-ah scan panni context read panra model)` aana **Qwen2.5-VL-32B** model-ah use pannirkoam. Faded receipts `(veiyil paduradhala mangi pona receipts)`-ku OpenCV CLAHE processing `(image contrast boundaries normalise panni visual enhance panra tool)`-um, very tall receipts-ku aspect-ratio splitting algorithm `(image height scale calculations check panni slice slice-ah split panra code)`-um implement pannirkoam. Host constraints `(local machine GPU memory parameter size limits)`-ah resolve panna Cloudflare Tunnels valiya remote T4 GPUs-la quantized model `(weight precision precision-ah FP16-la irundhu 4-bit-ah reduce panni low load memory engine)`-ah run panni, **96% Invoice accuracy** and **92% Receipt accuracy** achieve pannirkoam."
 
-### C. VLM (Vision Language Model)
-* **Real-world Example:** Ippo antha bill-a oru experienced Auditor (CA) kitta kodukrom. Avar antha bill-oda layout-ayum paparu (Layout), ezhuthi iruka words-ayum paparu (OCR), avaroda general knowledge-ayum use panni "Okay, ithu total amount, ithu GST, ithu patient name" nu exact-a thedi eduparu. Avaruku theriyum "Total" nu oru word iruntha, athuku pakkathula iruka number thaan actual amount nu.
-* **Namma Project-la:** VLM (like MiniCPM-V) thaan intha smart Auditor. Ithu image-ayum paakum (Vision), text-ayum purinjikum (Language). "Ithu invoice, so total amount kandipa bottom right-la thaan irukum" nu oru human mathiri yosichu accurate-a data-va extract pannum. Ithu thaan "BRAIN" of the system.
+### Slide 3: Problem Definition (Problem Definition)
+> **Pesa vendiyathu:** "Existing systems-la sequential workflow `(mudhala text boxes detect aagi, apram thaan characters identify panra step-by-step process)` irukum. Adhavadhu, mudhala bounding boxes `(text block coordinate boundary check standard borders)` detect aagi, apram thaan text recognition nadakum. Idhunaala initial stages-la vara small errors cascade `(adutha stage element bounds-ku error-ah multiply panni pass panra path)` aagi end-to-end processing-ah affect pannum. Idhukaaga faded thermal paper prints `(veiyil-la or long-time use-la ink fade aana receipts text)`, regional Indic script code-switching `(Tamil characters and English numerals mixed invoice single script translation)`, and unstructured table layouts `(borderless columns or column size alignments dynamically change aana forms)`-ah direct-ah read panna mudiyatha problem-ah address pannirkoam."
 
-### Short Summary for Presentation:
-- **OCR:** Reads the words (Enna ezhuthi iruku?).
-- **Layout:** Understands the structure (Enga ezhuthi iruku?).
-- **VLM:** Understands the meaning (Athuku artham enna, namma thedura data ethu?).
+### Slide 4 & 5: Literature Survey (Literature Survey Tables)
+> **Pesa vendiyathu:** "Naanga research path-la, Dosovitskiy et al. (2021) oda ViT model `(Vision Transformer patch sequence representation processor)`, Kim et al. (2022) oda Donut, and Du et al. (2020) oda PP-OCR models-ah survey pannom. ViT-la language decoding `(visual embeds vectors-ah text string characters-ah convert panra decoder)` illai. Donut model very tall receipts-la visual tokens `(image patches embedding representations)` overflow aagi fail aagum. PP-OCR-la spatial layout preservation `(document elements coordinates structure sequence check)` kidayathu. Intha gaps-ah resolve panna, VLM-oda spatial attention, aspect-ratio splitting, and remote GPU worker architecture-ah dynamic advantage-ah use pannirkoam."
+
+### Slide 6: Existing System & Demerits (Existing System)
+> **Pesa vendiyathu:** "Existing systems common-ah rule-based templates and local OCR engines (Tesseract / EasyOCR) valiya run aagudhu. Idhoda demerits ennanu paatha: low contrast thermal ink prints `(contrast low-ah faded print)`-la complete fail aagum; Tamil and English mixed characters-ah read panna mudiyadhu; apram layout format maarna dynamic-ah work aagathu, manually template setup pannanum."
+
+### Slide 7: Proposed System & Merits (Proposed System)
+> **Pesa vendiyathu:** "Engaloda Proposed System-la traditional OCR layer-ah complete-ah drop panni, direct pixel-level mapping-ah **Qwen2.5-VL-32B** model valiya run panroam. Idhoda merits: sequential error propagation completely zero; CLAHE contrast recovery faded ink legible aakidum; dynamic splitting receipts tall height token limits `(VLM model accepts only fixed amount of token inputs)`-ah prevent pannum; remote hosting system local hardware load-ah bypass pannum."
+
+### Slide 8: System Architecture (Architecture Diagram)
+> **Pesa vendiyathu:** "System framework overall-ah 5 tiers-ah divide aagiruku:
+> 1. Presentation Tier `(React UI Front-end interface dashboard)`
+> 2. Local Orchestration Tier `(FastAPI and OpenCV CLAHE/Splitting backend controller)`
+> 3. Secure Tunnelling Layer `(cloudflared daemon local bridge)`
+> 4. Remote High-Performance Worker `(llama-cpp-python running CUDA server)`
+> 5. Deep Learning Model Layer `(quantized GGUF Qwen2.5-VL-32B)`
+> Intha model segments custom secure HTTPS connection valiya communicate pannum."
+
+### Slide 9: Preprocessing Techniques - OpenCV & CLAHE (CLAHE)
+> **Pesa vendiyathu:** "Receipt prints low contrast-ah irundha, OpenCV-la CLAHE processing trigger pannuvom. Idhu whole image-ku uniform histogram-ah scale பண்ணாம, image-ah $8 \times 8$ local tiles `(sub-sections of image)`-ah divide panni local contrast-ah normalize pannum. Fold creases or shadows naala noise block aagama iruka contrast limit clipping `(clipping parameter to prevent noise amplification)` apply pannuvom."
+
+### Slide 10: Inference Techniques - Quantization & SSE (Inference Tech)
+> **Pesa vendiyathu:** "32-Billion parameter model-ah run panna huge compute thevai. Local constraint-ah solve panna **IQ4_XS 4-bit importance matrix quantization** `(quantizing weights with calibration data to protect critical values)` valiya model size-ah 70GB-la irundhu 19GB-ah reduce pannirkoam. Streaming dynamic latency client-side delay prevent panna, FastAPI Server-Sent Events (SSE) `(server closing direct UI connection check client loop text 1-by-1 push)` stream protocols implement pannirkoam."
+
+### Slide 11: Networking Mechanisms - Cloudflare Tunnels (Networking)
+> **Pesa vendiyathu:** "Local Master Node and Remote GPU Worker node-ah encrypt panni connect panna **Cloudflare Tunnel (`cloudflared`)** use panroam. Outbound-only tunnel `(local machine-la inbound ports open panna-ma HTTPS request output bridge connection)` connection establish panradhunaala, public IP exposure and firewall inbound port configuration current setup-la external attacks-ah complete-ah protect pannum."
+
+### Slide 12: Fusion Mechanisms - Gated Cross-Attention (Fusion)
+> **Pesa vendiyathu:** "Document images-ah Vision Transformer (ViT) patch grids format aana $14 \times 14$ coordinates projection-ah convert pannum. Decoder layers positional embeddings control mechanism-um, visual keys mapping-um **Gated Cross-Attention** `(visual token arrays and text prompt tokens interacts cross-layers values control gating)` block query layers valiya combine aagum. Idhunaala horizontal layout elements-oda spatial key-to-value structure retain aagum."
+
+### Slide 13: Algorithms - Dynamic Overlap Splitting (Splitting Algorithm)
+> **Pesa vendiyathu:** "Receipt height/width threshold factor **1.5** limit exceed aana, dynamic splitting execution start aagum. Slices separation phase-la characters boundary cuts delay reduce panna standard overlap margin ($\delta$) `(10% height margin left between two slices to protect data)` calculate pannuvom. Slice boundaries vertical cross lines capture check correct-ah handle aagum."
+
+### Slide 14: Algorithms - Deduplication & Stitching (Stitching Algorithm)
+> **Pesa vendiyathu:** "Segmented slices target coordinates-ah global coordinates projection `(shifting local canvas elements coordinate parameters to full receipt canvas height)` stitch pannuvom. Overlap boundary items duplicates clear panna, **RapidFuzz token-sort similarity score** `(text words order sorting check metrics ratio checking)` calculation check trigger pannuvom. Identical lines index value validation finish aana detailed JSON return aagum."
+
+### Slide 15: System Modules - Part 1 (Modules 1-3)
+> **Pesa vendiyathu:** "Module 1-la React UI context-la camera control canvas viewport touched-cropper handles. Module 2-la backend image dimensions scale checks, grayscale conversion handle check process. Module 3-la OpenCV CLAHE dynamic local histograms parameters restore faded characters process."
+
+### Slide 16: System Modules - Part 2 (Modules 4-6)
+> **Pesa vendiyathu:** "Module 4-la aspect ratio receipt slice boundaries split check algorithms handles. Module 5-la Cloudflare daemon HTTP requests payloads serialization tunnel routes. Module 6-la Remote GPU llama-cpp engine loads quantized weights run thread configurations."
+
+### Slide 17: System Modules - Part 3 (Modules 7-9)
+> **Pesa vendiyathu:** "Module 7-la dual CoT language prompting structures handle check targets. Module 8-la dynamic slices overlap stitching RapidFuzz deduplication logic runs. Module 9-la MongoDB database users security JWT token session validation and Excel (.xlsx) / Text (.txt) formats reports generation."
+
+### Slide 18: UML Diagrams (UML Sequence/Activity)
+> **Pesa vendiyathu:** "UML diagram slide-la, Fig 5.3 Sequence Diagram valiya client upload, Master node CLAHE, Cloudflare Tunnel worker routes, VLM attention generation, and final database vault save logical chronological flows-ah clear-ah present pannirkoam."
+
+### Slide 19: System Design: Block Diagram & DFD (System Design)
+> **Pesa vendiyathu:** "Intha slide-la structured designs context-la, Fig 5.1 Block Diagram blocks connectivity, and Fig 5.4 Dataflow Diagram DFD Level 0 Context DFD and Level 1 Detailed DFD flows mapped data segments target-ah outline pannirkoam."
+
+### Slide 20: Result, Output & Screenshots - Part 1 (Performance)
+> **Pesa vendiyathu:** "Proposed system efficiency metrics validation: standard invoices-la **96% key-value accuracy**, degraded thermal receipts-la **92% key-value accuracy** achieve pannirkoam. Average pipeline latency **12-15 seconds**. Ablation study `(components parameters add/remove validation tests check accuracy impact)` component metrics validation proof target-ah map pannudhu."
+
+### Slide 21 & 22: Result, Output & Screenshots - Part 2 & 3 (UI Screenshots)
+> **Pesa vendiyathu:** "App screenshots-la, Fig B.1 dashboard screen upload, Fig B.2 viewport bounds touch cropping setup. Fig B.3-la active SSE streaming steps status. Fig B.4 output page-la native script text, side-by-side English translations, monospace layout ASCII digital twin layout grid display format view."
+
+### Slide 23: Future Scope & Enhancements (Future Scope)
+> **Pesa vendiyathu:** "Future scope highlights:
+> 1. KV-Cache pre-warming GPU VRAM prefetch logic implementation target-ah 30-40% delay decrease dynamic setup runs.
+> 2. Cursive script Indic dataset compile fine-tune visual encoder.
+> 3. Token-level soft-attention probability matrix confidence scoring mapping check errors detection dashboard system."
+
+### Slide 24: Conclusion (Conclusion)
+> **Pesa vendiyathu:** "Overall MDIS framework implementation success target. Multimodal Qwen2.5-VL pixel model distributed Master-Worker setup valiya cost constraints resolve system targets. Monospace digital twin grids spatial layout and Excel exports accounting automation efficiency increase pipeline success proof."
+
+### Slide 25: List of References (References)
+> **Pesa vendiyathu:** "Engaloda project report base check standard lead authors journals reference publications reference targets 20 items sequential-ah list map format done. Thank you reviewers, any questions please."
 
 ---
 
-## 3. Extra Point: Master-Worker Pipeline & Edge Computing (Optional for Tech Questions)
-Namma project-la hardware constraint (4GB VRAM GPU thaan iruku). Athunala, heavy models-a (VLM) Cloud/Kaggle la run pandrom (Worker). Light models-a (OCR / API) Local-la run pandrom (Master).
-- **Analogy:** Oru chinna restaurant-la (Local PC - 4GB GPU), basic chopping and prep work (OCR/FastAPI) pandrom. Aana main dish aana briyani seyya periya master chef kitchen-ku (Kaggle T4 GPU - VLM) anuppi vaikrom.
+## ⚙️ Part 2: Advanced Q&A: Focus on Algorithms & Mechanisms (Tanglish Explanation)
 
-Itha base panni unga words-la explain pannunga, presentation semmaya irukum!
+*Reviewers mathiri question kepanga, athuku english-la dynamic-ah answer solla intha Q&A guide:*
 
----
+### Q1: Dynamic splitting logic-la aspect ratio calculation-um thresholds values-um eppadi define aagudhu?
+**Answer (English):** "We calculate the aspect ratio by dividing the image height ($H$) by the image width ($W$).
+$$\text{Aspect Ratio} = \frac{H}{W}$$
+We set the threshold at **1.5**. If the aspect ratio is less than or equal to 1.5, it is processed as a single image. If the ratio exceeds 1.5, the dynamic overlap splitting algorithm is triggered, slicing the image into vertical segments."
 
-## 4. The 5 Main Algorithms Used in Our Project (Baby Step Explanation)
+### Q2: Slicing process-la vertical overlap margin ($\delta$) oru text line character-ah cut panna eppadi prevent pannum?
+**Answer (English):** "The overlap margin ($\delta$) is critical to maintain text line continuity. If we slice the receipt without an overlap, letters located exactly on the cut line will be sliced in half (character cropping), causing the VLM to fail to read them. 
+We set the overlap margin ($\delta$):
+$$\delta = 0.10 \times \text{Slice Height}$$
+This means a **$10\%$ vertical overlap** between adjacent slices. This ensures that any text line falling on the slice boundary is captured in its entirety by at least one of the adjacent segments."
 
-Presentation-la "Enna algorithms use pannirukinga?" nu ketta, intha 5 points-a chinna pillakuku solra mathiri asalta sollunga:
+### Q3: Gated Cross-Attention mechanism computational level-la eppadi spatial layout-ah preserve pannum?
+**Answer (English):** "Gated Cross-Attention bridges the vision transformer encoder and the autoregressive language decoder. 
+*   First, the image is tokenized into visual patch embeddings $V = \{v_1, v_2, \dots, v_n\}$ by the ViT.
+*   The language prompt queries $Q$ interact with these visual keys $K_v$ and values $V_v$ through a cross-attention layer:
+$$\text{Attention}(Q, K_v, V_v) = \text{softmax}\left(\frac{Q K_v^T}{\sqrt{d_k}}\right) V_v$$
+*   This output is gated by a learnable parameter $g$ (initialized to zero) before being added back to the language token embeddings:
+$$\mathbf{x}_{\text{out}} = \mathbf{x}_{\text{lang}} + g \cdot \text{Attention}(Q, K_v, V_v)$$
+This gating mechanism allows the model to dynamically control how much spatial layout information is injected into the language generation step, preventing visual noise from corrupting text outputs."
 
-### 1. CLAHE (Contrast Limited Adaptive Histogram Equalization)
-* **Enna Pannuthu? (Like a Baby):** Oru mangalana (faded) old photo-va nalla bright-a, theliva mathi tharum. Romba bright aaki details-a keduthurama, correct-a balance pannum.
-* **Enga Work Aaguthu?:** User upload pandra bill/receipt mangala iruntha (e.g., supermarket thermal receipts), atha process pandrathuku munnadi theliva matha ithu thaan use aaguthu (Image Enhancement).
-* **Yaar Create Panna?:** Stephen Pizer (UNC Chapel Hill University).
+### Q4: Deduplication algorithm-la RapidFuzz Levenshtein Distance calculation overlap deduplication-la eppadi duplicate items identify pannum?
+**Answer (English):** "During the stitching of segmented slices, items within the overlap zone ($\delta$) may be extracted twice (once from the top slice and once from the bottom). 
+To deduplicate, we extract the text of keys (e.g., item name) and compute the **Levenshtein Distance-based Token Sort Ratio** ($R$):
+$$R = \frac{|A \cap B|}{|A| + |B| - |A \cap B|} \times 100$$
+If $R > 90\%$ and the numerical attributes (price, quantity) match exactly, we determine it is a duplicate entry. The system merges them into a single record and updates the database, ensuring no duplicate items exist in the final JSON payload."
 
-### 2. Naive Dynamic Resolution Algorithm
-* **Enna Pannuthu? (Like a Baby):** Oru periya paper-a athoda shape mathama, chinnatha madichu pocket-la vaikra mathiri. Image-oda original shape (romba neelama irunthalo, agalama irunthalo) athai nasukkama, smart-a chinna chinna pieces-a (tokens) mathum. Appo thaan chinna ezhuthu kooda udayama theliva theriyum.
-* **Enga Work Aaguthu?:** VLM model-ku image-a padikka anupurathuku munnadi (Image-a compress pandra idathula).
-* **Yaar Create Panna?:** Alibaba Cloud (Qwen Team).
+### Q5: Bounding coordinates map stitching local coordinates-la irundhu global coordinates calculation logic sollu.
+**Answer (English):** "When the receipt is split into $N$ slices, the VLM returns spatial bounding coordinates $(x, y)$ relative to each individual slice canvas $[0, 1000]$. 
+To map them back to the global receipt canvas:
+*   For slice index $i$ (where $i=0$ is the top slice), the global $y$-coordinate ($Y_{\text{global}}$) is calculated as:
+$$Y_{\text{global}} = Y_{\text{local}} + (i \times \text{Slice Height}) - (i \times \text{Overlap Margin } \delta)$$
+This shifting formula projects all local bounding boxes back to the original full-length receipt canvas, allowing correct global layout mapping."
 
-### 3. Vision Transformer (ViT) Spatial Self-Attention
-* **Enna Pannuthu? (Like a Baby):** Oru puzzle-a sekra mathiri. Oru bill-la "100" nu oru number iruku, athu "Total"-a illana "Tax"-a nu athuku pakkathula illana mela enna iruku nu (context) thedi purinjikum. Ezhuthayum paakum, athu enga iruku ngra idathayum paakum.
-* **Enga Work Aaguthu?:** VLM model ulla (Namma system-oda Brain la). OCR mathiri verum ezhutha padikama, athuku enna artham nu kandupudika use aaguthu.
-* **Yaar Create Panna?:** Google Brain (Dosovitskiy et al.) and Google Research (Vaswani et al. - Attention mechanics).
+### Q6: Server-Sent Events (SSE) backend connection-la keep-alive heartbeats network time-out limit-ah prevent panna eppadi run aagum?
+**Answer (English):** "Cloudflare Tunnels terminate HTTP connections if they remain idle for more than 100 seconds. Because VLM processing of high-resolution images can take 20 to 40 seconds, the connection might drop.
+To prevent this, our FastAPI backend creates an asynchronous generator. Every **15 seconds**, it writes an empty comment block `': ping\n\n'` (SSE heartbeat) to the HTTP stream. The browser client silently ignores this comment, but the intermediate Cloudflare routers register active TCP traffic, keeping the tunnel socket open until the extraction is complete."
 
-### 4. Dynamic Document Splitting Algorithm
-* **Enna Pannuthu? (Like a Baby):** Oru romba neelamana dosa-va orey vaaila saapda mudiyathu la? Athai chinna chinna peice-a vetti, aana oru piece-kum innoru piece-kum chinna continuity (overlap) vechu saapidra mathiri.
-* **Enga Work Aaguthu?:** Romba neelamana grocery bills upload pannum pothu, AI model confuse aagama iruka, antha bill-a paathi paathiya cut panni anuppum.
-* **Yaar Create Panna?:** Namma project-oda custom logic (Namma pipeline-la array overlaps use panni namma math-a ezhuthi irukom).
+### Q7: IQ4_XS Quantization-la importance matrix eppadi precision check-ah model stability-ah preserve pannum?
+**Answer (English):** "Standard quantization scales all model weights uniformly, which can damage critical parameters (like number recognition). 
+**IQ4_XS** uses an **Importance Matrix (Imatrix)** generated by running a calibration dataset on the model. The Imatrix calculates the sensitivity of each tensor layer. Layers that are critical to semantic reasoning are quantized with higher-bit retention, while less critical layers are heavily quantized. This minimizes semantic degradation, allowing the 32B model to retain $99\%$ of its original FP16 accuracy at 4-bit size."
 
-### 5. Distributed Hardware Offloading (Master-Worker Architecture)
-* **Enna Pannuthu? (Like a Baby):** Namma laptop-la RAM pathathu (Chinna kitchen). So, oru free aana periya cloud server-ku (Kaggle/Periya kitchen) briyani seyya (heavy processing) velaiya anuppi, anga irunthu final dish-a (output-a) mattum namma laptop-ku kondu varum.
-* **Enga Work Aaguthu?:** Local FastAPI (Master) and Kaggle GPU (Worker) naduvula. Cloudflare tunnel-a oru safe aana pipe mathiri use panni data-va anuprom.
-* **Yaar Create Panna?:** Open Source Community (llama.cpp, FastAPI, Cloudflare combinations vechu namma build pannathu).
+### Q8: Relational standard databases MySQL avoid panni structured reports-ku NoSQL MongoDB prefer panna enna reason?
+**Answer (English):** "Invoices and receipts do not have a fixed schema. One vendor might have fields like `tax_percentage`, while another might have `GSTIN`, `VAT`, or `service_charge`. 
+A relational database like MySQL requires a rigid, pre-defined schema, making it difficult to store varying JSON properties. **MongoDB** is a document-oriented NoSQL database that stores data natively in BSON (binary JSON) format. This allows us to persist highly unstructured, dynamic key-value dictionaries and nested arrays directly without table migrations."
 
-### 6. Mobile Viewfinder Scanner & Downscaling
-* **Enna Pannuthu? (Like a Baby):** Mobile phone camera app-a directly open panna browser memory overload aagi close aaidum. Athunala browser ullaaye oru camera lens overlay vechu click panni, pixel size-a adjust panni (max 1200px) chinnathaa backend-ku send pannum.
-* **Enga Work Aaguthu?:** Mobile browser-la camera scan trigger pannumpothu.
-* **Yaar Create Panna?:** HTML5 getUserMedia and Custom Canvas capture API.
+### Q9: Client-side web viewport-la crop coordinates scale calculations eppadi memory load target-ah process pannudhu?
+**Answer (English):** "To optimize visual token efficiency, we crop the document to its borders before sending it to the VLM.
+On mobile devices, standard drag gestures cause page scrolling. We apply `touch-action: none` via CSS to lock the viewport. We listen to `onTouchStart`, `onTouchMove`, and `onTouchEnd` events to calculate the crop coordinates relative to the rendered image aspect ratio. These coordinates are mapped to an offscreen HTML5 canvas to slice the high-resolution image locally, reducing upload bandwidth and VLM token count."
 
-### 7. Viewport-Locked Canvas Cropper
-* **Enna Pannuthu? (Like a Baby):** Mobile-la crop pannum pothu screen bounce aagama (scrolling logic disabled via touch-action: none) correct-a bill-oda edges-a mattum drag panni vetti eduthukalaam. Background table textures or extra objects-a remove panna ithu helpful.
-* **Enga Work Aaguthu?:** Photo eduthathu ku aprm preview screen-la.
-* **Yaar Create Panna?:** Custom CSS Touch Action Lock and canvas scaling coordinates.
+### Q10: Python libraries transformers-ah reduce check panni C++ optimized GGUF engine speeds up reason explain pannu.
+**Answer (English):** "HuggingFace Transformers runs on Python, which introduces interpreter overhead and global interpreter lock (GIL) latency. 
+**llama-cpp-python** is a lightweight Python binding for `llama.cpp`, which is written in pure **C/C++**. It compiles natively with CUDA and loads GGUF format weights. It uses raw memory mapping (`mmap`) to load model weights directly into VRAM, bypasses Python memory overhead, and executes tensor matrix multiplication directly on GPU cores via optimized GGML kernels, achieving a 3x speedup."
 
-### 8. Fallback-Safe Translation Merging
-* **Enna Pannuthu? (Like a Baby):** Multi-language bills-la (e.g. Tamil letters in bill) AI model sila words-a translate panna maranthudum. Appo blank-a kaatama, original Tamil word-ayey background-la fall back panni retain panni template-la output-a neat-a kaatum. Data loss zero!
-* **Enga Work Aaguthu?:** Backend pipeline post-processing-la.
-* **Yaar Create Panna?:** Custom key-by-key dictionary merging.
+### Q11: Performance evaluation ablation benchmarks statistics values check-oda proof values mapping key mechanism context sollu.
+**Answer (English):** "The ablation study proves that our proposed preprocessing and splitting pipeline is necessary for high accuracy. 
+*   **Without CLAHE & Splitting (87.5%):** The model fails to read faded items and suffers context truncation.
+*   **Adding CLAHE (91.2%):** Readability of low-contrast text improves, but tall receipt boundaries are still cropped.
+*   **Adding CLAHE + Splitting (96.0%):** Resolves both text legibility and height constraints, yielding the highest accuracy. This proves that our individual components are mathematically critical to the system's success."
 
-### 9. SSE Keep-Alive Heartbeats
-* **Enna Pannuthu? (Like a Baby):** Remote Kaggle server processing-ku 2 mins continuous-a work pannum pothu Cloudflare pathi valila "no signal" nu connection-a cut pannidum. Athu nadakama iruka master server "naa innum work pannitu thaan iruken" nu 15s ku oru thadava ping sound (sse comment) anuppite irukum.
-* **Enga Work Aaguthu?:** FastAPI Server streaming channel-la.
-* **Yaar Create Panna?:** Async Stream comment generator loop.
-
----
-
-All the best bro! Panel kitta thool kelapunga!
+### Q12: Slide 9-la CLAHE preprocessing-la $8 \times 8$ local tiles and contrast limit clipping are mentioned. What do they mean, and why are they set to those values?
+**Answer (English):** "In image processing, CLAHE (Contrast Limited Adaptive Histogram Equalization) is an adaptive local enhancement technique. Instead of equalizing the entire image globally—which causes noise amplification in dark areas—CLAHE divides the image into a grid of small contextual regions called **tiles**. 
+1. **$8 \times 8$ Local Tiles:** This means the image is divided into a grid of **8 columns** and **8 rows** of equal-sized sub-blocks (making a total of **64 local tiles**). Each tile has its histogram equalized independently to normalize local light variations, such as shadows on one side of a thermal receipt. An $8 \times 8$ grid size is the standard engineering balance between fine local contrast correction and processing efficiency.
+2. **Contrast Limit Clipping:** To prevent the enhancement of high-frequency background noise (such as paper creases, folds, or dirt), we clip the local histogram height above a specific threshold. This threshold limits contrast amplification in homogeneous areas, ensuring that only actual text characters are sharpened and background paper noise is suppressed."
