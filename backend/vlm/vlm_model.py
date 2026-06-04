@@ -7,7 +7,7 @@ import json, logging, re
 from pathlib import Path
 from typing import Any
 from backend.config import VLM_REQUIRED_FIELDS, INTERNAL_MODEL_API_KEY
-from backend.vlm.gguf_engine import query_local_llava
+from backend.vlm.vision_transmit import query_vision_model
 from backend.utils.image_enhancer import split_for_extraction
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ Reply with ONLY one word from this list:
 english, hindi, bengali, tamil, telugu, kannada, gujarati, marathi, odia, malayalam, punjabi, urdu, mixed
 
 Do not explain. Do not add punctuation. Just one word."""
-        raw = query_local_llava(image_bytes, lang_scan_prompt, model_type="qwen")
+        raw = query_vision_model(image_bytes, lang_scan_prompt)
         if not raw:
             return "mixed"
         # Clean and normalize
@@ -297,9 +297,9 @@ def _extract_single_segment(image_bytes: bytes, filename: str = "") -> dict:
             prompt += f"\n[LANGUAGE CONTEXT]: {lang_rule}"
 
         model_type = "qwen" if detected_lang == "english" else "minicpm"
-        logger.info("[vlm] Master Pass | lang=%s | model=%s", detected_lang, model_type)
+        logger.info("[vlm] Master Pass | lang=%s | model=vision", detected_lang)
 
-        res = query_local_llava(image_bytes, prompt, api_key=INTERNAL_MODEL_API_KEY, model_type=model_type)
+        res = query_vision_model(image_bytes, prompt)
         parsed_result = _clean_output(res)
 
         if not parsed_result or "_source" not in parsed_result or parsed_result["_source"] != "master_vlm_json":
@@ -338,7 +338,7 @@ def _extract_single_segment(image_bytes: bytes, filename: str = "") -> dict:
         return {
             "fields": final_fields,
             "is_invoice": True,
-            "_source": "kaggle_remote_vlm" if "trycloudflare.com" in _get_dynamic_kaggle_url() else "local_vlm"
+            "_source": "gemini_api"
         }
     except Exception as e:
         logger.error(f"VLM Error: {e}")
