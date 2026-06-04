@@ -1,5 +1,5 @@
-# backend/vlm/vision_config.py
-# This file stores internal model configurations.
+import os
 
+# Read from environment variables
+VISION_API_TOKEN = os.getenv("VISION_API_TOKEN", "PASTE_YOUR_GEMINI_API_KEY_HERE")
 
-VISION_API_TOKEN = "AIzaSyCko8-jL1h6q6Y5w_8_8g1OEPmvVUqGd9A"

@@ -1,9 +1,7 @@
-"""
-Configuration for sending emails (OTP, Forgot Password, etc.)
-"""
+import os
 
-# Put your Gmail Address here
-SENDER_EMAIL = "your_email@gmail.com"
+# Read from environment variables
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "varatharajrajeswari1@gmail.com")
 
-# Put your 16-character Google App Password here (NOT your normal password)
-APP_PASSWORD = "your_app_password"
+

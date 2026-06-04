@@ -1,25 +1,26 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import logging
-from backend.auth.email_config import SENDER_EMAIL, APP_PASSWORD
+import requests
+import json
+from backend.auth.email_config import BREVO_API_KEY, SENDER_EMAIL
 
 logger = logging.getLogger(__name__)
 
 def send_otp_email(recipient_email: str, otp: str) -> bool:
     """
-    Sends a 6-digit OTP to the provided recipient email address.
+    Sends a 6-digit OTP to the provided recipient email address using Brevo API.
     """
-    if SENDER_EMAIL == "your_email@gmail.com" or APP_PASSWORD == "your_app_password":
-        logger.warning("Email credentials not configured in email_config.py!")
+    if BREVO_API_KEY == "PASTE_YOUR_BREVO_API_KEY_HERE" or SENDER_EMAIL == "your_registered_brevo_email@example.com":
+        logger.warning("Brevo credentials not configured in email_config.py!")
         return False
         
     try:
-        msg = MIMEMultipart()
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Your Password Reset OTP"
-
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "api-key": BREVO_API_KEY,
+            "content-type": "application/json",
+            "accept": "application/json"
+        }
+        
         body = f"""
         Hello,
         
@@ -33,19 +34,29 @@ def send_otp_email(recipient_email: str, otp: str) -> bool:
         Support Team
         """
         
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Connect to Gmail SMTP server
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(SENDER_EMAIL, APP_PASSWORD)
+        data = {
+            "sender": {
+                "name": "Invoice AI Support",
+                "email": SENDER_EMAIL
+            },
+            "to": [
+                {
+                    "email": recipient_email
+                }
+            ],
+            "subject": "Your Password Reset OTP",
+            "textContent": body
+        }
         
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, recipient_email, text)
-        server.quit()
+        response = requests.post(url, headers=headers, data=json.dumps(data))
         
-        logger.info(f"OTP email sent successfully to {recipient_email}")
-        return True
+        if response.status_code in [200, 201, 202]:
+            logger.info(f"OTP email sent successfully to {recipient_email} via Brevo")
+            return True
+        else:
+            logger.error(f"Brevo API failed: {response.status_code} - {response.text}")
+            return False
+            
     except Exception as e:
-        logger.error(f"Failed to send OTP email: {e}")
+        logger.error(f"Failed to send OTP email via Brevo: {e}")
         return False

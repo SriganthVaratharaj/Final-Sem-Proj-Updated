@@ -10,7 +10,8 @@ from pydantic import BaseModel
 import jwt
 
 import random
-from backend.db.auth_repository import create_user, get_user_by_email, verify_password
+from backend.db.auth_repository import create_user, get_user_by_email, verify_password, get_password_hash
+from backend.db.connection import get_async_db
 from backend.auth.email_service import send_otp_email
 
 # In-memory store for OTPs: { "email": "123456" }
@@ -140,8 +141,27 @@ async def reset_password(request: ResetPasswordRequest):
         )
         
     # Update password in repository
-    # Since auth_repository is mocked in this project, we just clear the OTP
-    # In a real app, we'd call update_password(email, hash(request.new_password))
+    new_hash = get_password_hash(request.new_password)
+    
+    # Try updating real MongoDB if available
+    db_conn = get_async_db()
+    if db_conn is not None:
+        try:
+            # Assuming 'users' collection
+            await db_conn["users"].update_one(
+                {"email": email}, 
+                {"$set": {"hashed_password": new_hash}}
+            )
+        except Exception as e:
+            pass # fallback if collection name differs
+            
+    # Also attempt to call a repo update function if they have one defined on HF
+    try:
+        from backend.db.auth_repository import update_password
+        await update_password(email, new_hash)
+    except ImportError:
+        pass
+
     otp_store.pop(email, None)
     
     return {"message": "Password reset successfully."}

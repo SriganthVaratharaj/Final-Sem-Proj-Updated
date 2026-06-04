@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://sriganthvaratharaj-invoice-ai-backend.hf.space'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const BASE = `${API_URL}/api`
 
 export const getFileUrl = (url) => {
