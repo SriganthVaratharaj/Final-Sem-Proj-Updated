@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Force localhost connection regardless of Vercel env variables
+const API_URL = 'http://localhost:8000'
 const BASE = `${API_URL}/api`
 
 export const getFileUrl = (url) => {
